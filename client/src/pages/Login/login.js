@@ -29,6 +29,10 @@ function Login({ onLogin }) {
                     localStorage.setItem("token", token);
                     localStorage.setItem("username", username);
 
+                    // Update auth state in the parent only after successful login
+                    onLogin(username);
+                    setInvalidLogin(false);
+
                     //Redirect Back home
                     console.log("User logged in successfully");
                     navigate("/"); // Redirect to home page after login
@@ -37,8 +41,6 @@ function Login({ onLogin }) {
                 .catch((err) => {
                     setInvalidLogin(true);
                 });
-
-            onLogin(username); // Call the parent function to update login state
 
         } else {
             console.log("Please enter both username and password");

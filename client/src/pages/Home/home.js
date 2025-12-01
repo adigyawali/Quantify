@@ -2,6 +2,11 @@ import React, { useState } from "react";
 import axios from "axios";
 import "./home.css";
 
+const api = axios.create({
+    // Use env override when deploying, otherwise rely on CRA proxy in package.json
+    baseURL: process.env.REACT_APP_API_BASE_URL || "",
+});
+
 function App() {
     const [ticker, setTicker] = useState("");
     const [showResults, setShowResults] = useState(false);
@@ -46,7 +51,7 @@ function App() {
 
         try {
             // Call your backend: /stock/<ticker>
-            const response = await axios.get(`http://127.0.0.1:5000/stock/${ticker.toUpperCase()}`);
+            const response = await api.get(`/stock/${ticker.toUpperCase()}`);
             const data = response.data;
 
             if (!data || !data.news || data.news.length === 0) {
@@ -72,10 +77,19 @@ function App() {
 
         } catch (error) {
             console.error("Error fetching data:", error);
-            if (error.response?.status === 404) {
+            const status = error.response?.status;
+
+            if (status === 404) {
                 setError("Ticker not found or no recent news available. Please try a different ticker.");
-            } else if (error.response?.status === 500) {
-                setError("Server error. Please check if the API key is configured correctly.");
+            } else if (status === 401 || status === 403) {
+                setError("Invalid or unauthorized Finnhub API key on the server.");
+            } else if (status === 429) {
+                setError("Finnhub rate limit exceeded. Please wait a moment and try again.");
+            } else if (status === 500) {
+                const backendError = error.response.data?.error || "Server error. Please check if the API key is configured correctly.";
+                setError(`Server Error: ${backendError}`);
+            } else if (status === 502) {
+                setError("Unable to reach Finnhub from the server. Check internet connectivity or firewall settings.");
             } else {
                 setError(`Failed to fetch data: ${error.response?.data?.error || error.message}`);
             }
@@ -134,7 +148,7 @@ function App() {
 
                         <div className="sentiment-section">
                             <h3>Overall Market Sentiment</h3>
-                            <div 
+                            <div
                                 className="sentiment-badge"
                                 style={{
                                     backgroundColor: getSentimentColor(overallSentiment),
@@ -156,9 +170,12 @@ function App() {
                                     <div key={index} className="news-item">
                                         <div className="news-header">
                                             <span className="news-title">{article.title}</span>
-                                            <span 
+                                            <span
                                                 className="article-sentiment"
-                                                style={{ color: getSentimentColor(article.sentiment) }}
+                                                style={{
+                                                    backgroundColor: getSentimentColor(article.sentiment),
+                                                    color: "#fff"
+                                                }}
                                             >
                                                 {article.sentiment} ({article.confidence})
                                             </span>

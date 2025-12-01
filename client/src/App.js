@@ -1,5 +1,5 @@
 // App.js
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from "react-router-dom";
 import Home from "./pages/Home/home";
 import Login from "./pages/Login/login";
@@ -14,6 +14,17 @@ function AppContent() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [username, setUsername] = useState("");
     const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    // Restore auth state on page load so refreshes keep the user logged in
+    useEffect(() => {
+        const storedToken = localStorage.getItem("token");
+        const storedUser = localStorage.getItem("username");
+
+        if (storedToken && storedUser) {
+            setIsLoggedIn(true);
+            setUsername(storedUser);
+        }
+    }, []);
 
     const toggleSidebar = () => {
         setSidebarOpen(!sidebarOpen);
@@ -56,6 +67,8 @@ function AppContent() {
                     setIsLoggedIn(false);
                     setUsername("");
                     setSidebarOpen(false);
+                    localStorage.removeItem("token");
+                    localStorage.removeItem("username");
                 }}
             />
 
@@ -77,7 +90,6 @@ function AppContent() {
                     path="/dashboard" 
                     element={
                         <Dashboard 
-                            isLoggedIn={isLoggedIn}
                             username={username}
                         />
                     } 

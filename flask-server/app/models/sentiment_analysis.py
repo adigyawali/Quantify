@@ -3,7 +3,7 @@ import torch
 
 tokenizer = AutoTokenizer.from_pretrained("yiyanghkust/finbert-tone")
 model = AutoModelForSequenceClassification.from_pretrained("yiyanghkust/finbert-tone")
-labels = ["Neutral", "Bullish", "Bearish"]
+labels = ["bullish", "neutral", "bearish"]
 
 def analyzeSentiment(texts):
     inputs = tokenizer(texts, padding=True, truncation=True, max_length=512, return_tensors="pt")
@@ -24,12 +24,12 @@ def analyzeSentiment(texts):
 
 
 
-# if __name__ == ("__main__"):
-#     texts = ["Jensen Huang from Nvidia Annouces split from taiwaniese semiconductor manufactoring stating 'the ceo slept with my wife'",
-#             "Apple founded technology that was assumed for humans to not reach until the year 5000",
-#             "Meta CEO new nickname 'Zucc'",
-#             "Google stock expected to rise 5000%"]
+if __name__ == ("__main__"):
+    texts = ["Jensen Huang from Nvidia Annouces split from taiwaniese semiconductor manufactoring stating 'the ceo slept with my wife'",
+            "Apple founded technology that was assumed for humans to not reach until the year 5000",
+            "Meta CEO new nickname 'Zucc'",
+            "Google stock expected to rise 5000%"]
     
-#     results = analyzeSentiment(texts)
-#     for r in results:
-#         print(r)
+    results = analyzeSentiment(texts)
+    for r in results:
+        print(r)
