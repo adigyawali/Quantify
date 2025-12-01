@@ -29,17 +29,7 @@ Quantify blends real-time market data with AI-powered news sentiment so you can 
   </table>
 </div>
 
-## Quick start (local)
-1) **Backend**
-   - `cd flask-server && python3 -m venv venv && source venv/bin/activate`
-   - `pip install -r requirements.txt`
-   - Add `.env` in `flask-server/app/` with `SECRET_KEY` and `FINNHUB_API_KEY`.
-   - `python3 run.py`
-2) **Frontend**
-   - `cd client && npm install && npm start`
-   - Opens at `http://localhost:3000` (proxy to Flask on `:5000`).
 
-## Under the hood
 - **Frontend:** React, React Router, Recharts, Lucide icons
 - **Backend:** Flask, JWT auth, Finnhub news feed, FinBERT sentiment analysis
 - **Data:** SQLite for users/portfolio, local storage for session tokens
