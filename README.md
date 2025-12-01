@@ -1,20 +1,19 @@
 # Quantify
 
-> High-end market intelligence and portfolio management in one sleek experience.
+> High-end market intelligence and portfolio management in one experience.
 
 <div align="center">
   <img src="images/homepage.png" alt="Quantify Home" width="820" />
-  <p><i>Search tickers, read the market’s pulse, and act with confidence.</i></p>
+  <p><i>Search tickers, analyze stocks and overall market, and track portfolio.</i></p>
 </div>
 
-## What it does
+## Description
 Quantify blends real-time market data with AI-powered news sentiment so you can see both the numbers and the narrative. Log in, search any ticker, view the latest headlines scored as Bullish/Bearish/Neutral, and manage your personal portfolio from a modern dashboard.
 
-## Why it stands out
-- **AI sentiment on demand:** Headlines are analyzed with FinBERT to highlight market tone, not just price.
-- **Investor-grade dashboard:** Track total value, P&L, and drill into individual holdings with mini-charts and quick buy/sell actions.
+
+- **Dashboard:** Track total value, P&L, and drill into individual holdings with mini-charts and quick buy/sell actions.
 - **Personalized workflows:** Switch between Portfolio, Search History, and Watchlist to keep your research organized.
-- **Secure by design:** JWT-based auth keeps your data tied to your account.
+
 
 ## Product tour
 - **Home & Search** – Enter a ticker to get curated news with confidence scores and an overall market sentiment badge.
