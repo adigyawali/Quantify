@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard/dashboard";
 import Signup from "./pages/Login/signup";
 import Sidebar from "./components/sidebar";
 import "./index.css";
+import { useNavigate } from "react-router-dom";
 import { Menu } from "lucide-react"; 
 
 function AppContent() {
@@ -14,7 +15,7 @@ function AppContent() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [username, setUsername] = useState("");
     const [sidebarOpen, setSidebarOpen] = useState(false);
-
+    const navigate = useNavigate()
     // Restore auth state on page load so refreshes keep the user logged in
     useEffect(() => {
         const storedToken = localStorage.getItem("token");
@@ -69,6 +70,7 @@ function AppContent() {
                     setSidebarOpen(false);
                     localStorage.removeItem("token");
                     localStorage.removeItem("username");
+                    navigate("/")
                 }}
             />
 

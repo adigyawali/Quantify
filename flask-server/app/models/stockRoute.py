@@ -87,56 +87,54 @@ def get_stock_news(ticker):
 @stock_routes.route("/stock/<ticker>/history", methods=["GET"])
 def get_stock_history(ticker):
     """
-    Fetch historical candle data for a stock from Finnhub.
-    Query params: resolution (default 'D').
+    Fetch historical candle data for a stock from Alpha Vantage (Intraday).
     """
-    if not API_KEY:
+    alpha_key = os.getenv("ALPHA_VANTAGE_KEY")
+    if not alpha_key:
         return jsonify({"error": "API Key missing"}), 500
 
-    # Default to daily candles for the last 30 days
-    resolution = "D"
-    to_date = int(date.today().strftime("%s")) if hasattr(date.today(), 'strftime') else int(os.popen('date +%s').read().strip()) # Fallback for timestamp
-    # Actually simpler: import time
-    import time
-    to_timestamp = int(time.time())
-    from_timestamp = to_timestamp - (30 * 24 * 60 * 60) # 30 days ago
-
-    url = "https://finnhub.io/api/v1/stock/candle"
+    url = "https://www.alphavantage.co/query"
     params = {
+        "function": "TIME_SERIES_INTRADAY",
         "symbol": ticker.upper(),
-        "resolution": resolution,
-        "from": from_timestamp,
-        "to": to_timestamp,
-        "token": API_KEY
+        "interval": "5min",
+        "apikey": alpha_key
     }
-    headers = {"Accept-Encoding": "identity"}
 
     try:
-        r = requests.get(url, params=params, headers=headers, timeout=10)
+        r = requests.get(url, params=params, timeout=10)
     except Exception as e:
         return jsonify({"error": str(e)}), 502
 
     if r.status_code != 200:
-        return jsonify({"error": "Finnhub error", "details": r.text}), r.status_code
+        return jsonify({"error": "Alpha Vantage error", "details": r.text}), r.status_code
 
     data = r.json()
     
-    if data.get("s") != "ok":
-        return jsonify({"message": "No data found", "data": data}), 404
+    # Alpha Vantage returns 'Time Series (5min)' for success
+    time_series = data.get("Time Series (5min)")
+    if not time_series:
+        return jsonify({"message": "No data found or rate limit reached", "data": data}), 404
 
-    # Format for frontend (Recharts often likes array of objects)
-    # Finnhub returns { c: [], t: [], ... }
-    closes = data.get("c", [])
-    times = data.get("t", [])
+    # Format for frontend
+    # Data comes as { "YYYY-MM-DD HH:MM:SS": { "1. open": "...", "4. close": "..." }, ... }
+    # We need to sort it by time ascending for the graph
     
+    sorted_keys = sorted(time_series.keys())
     history = []
-    for i in range(len(closes)):
-        # Convert timestamp to readable date string or keep as timestamp
-        # MM/DD format
-        t_str = date.fromtimestamp(times[i]).strftime("%m/%d")
+    
+    for timestamp in sorted_keys:
+        # Parse timestamp "2025-11-28 16:55:00" -> "11-28 16:55"
+        # Simple string slicing is fastest
+        # timestamp is "YYYY-MM-DD HH:MM:SS"
+        #               0123456789012345678
+        date_str = timestamp[5:16] # "MM-DD HH:MM"
+        
+        price = float(time_series[timestamp]["4. close"])
+        
         history.append({
-            "date": t_str,
-            "price": closes[i]
+            "date": date_str,
+            "price": price
         })
 
     return jsonify(history)

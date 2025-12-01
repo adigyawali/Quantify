@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from 'axios';
 import { Plus, Minus, Search, TrendingUp, TrendingDown } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import "./dashboard.css";
 
 // Configure axios
@@ -20,12 +20,15 @@ function Dashboard({ username }) {
         overall_gain_loss_percent: 0,
         holdings: []
     });
+    const [portfolioHistory, setPortfolioHistory] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [activePage, setActivePage] = useState("portfolio"); 
     const [searchTicker, setSearchTicker] = useState("");
     const [transactionTicker, setTransactionTicker] = useState("");
-    const [transactionType, setTransactionType] = useState("buy"); // "buy" or "sell"
+    const [transactionType, setTransactionType] = useState("buy"); 
     const [transactionQuantity, setTransactionQuantity] = useState(1);
     const [transactionPrice, setTransactionPrice] = useState(0);
+    const [transactionDate, setTransactionDate] = useState(new Date().toISOString().split('T')[0]);
     const [showModal, setShowModal] = useState(false);
     const [error, setError] = useState("");
     const [selectedStock, setSelectedStock] = useState(null);
@@ -47,6 +50,13 @@ function Dashboard({ username }) {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setPortfolioData(res.data);
+            
+            // Also fetch history
+            const historyRes = await api.get("/portfolio/history", {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setPortfolioHistory(historyRes.data);
+            
             setLoading(false);
         } catch (err) {
             console.error(err);
@@ -58,8 +68,6 @@ function Dashboard({ username }) {
     const handleSearch = async (e) => {
         e.preventDefault();
         if (!searchTicker) return;
-        
-        // Pre-fill modal with searched ticker
         openTransactionModal(searchTicker.toUpperCase(), "buy");
     };
 
@@ -67,20 +75,10 @@ function Dashboard({ username }) {
         setTransactionTicker(ticker);
         setTransactionType(type);
         setTransactionQuantity(1);
-        
-        // Ideally fetch current price here
-        // For now, user enters price or we could fetch it
-        fetchCurrentPrice(ticker);
-        
+        setTransactionDate(new Date().toISOString().split('T')[0]);
+        setTransactionPrice(0); 
         setShowModal(true);
         setError("");
-    };
-
-    const fetchCurrentPrice = async (ticker) => {
-        // Reuse the Finnhub proxy via our backend or just ask user
-        // For this prototype, we'll ask user but try to pre-fill if possible
-        // Simplified: User inputs price
-        setTransactionPrice(0); 
     };
 
     const handleTransaction = async () => {
@@ -91,7 +89,8 @@ function Dashboard({ username }) {
             await api.post(endpoint, {
                 ticker: transactionTicker,
                 quantity: parseInt(transactionQuantity),
-                price: parseFloat(transactionPrice)
+                price: parseFloat(transactionPrice),
+                date: transactionDate
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -112,14 +111,10 @@ function Dashboard({ username }) {
         }
         
         setSelectedStock(ticker);
-        setStockHistory([]); // Clear previous data while loading
+        setStockHistory([]); 
 
         try {
             const res = await api.get(`/stock/${ticker}/history`);
-            // Transform for recharts if needed, but backend sends { date, price } which works if we map keys
-            // Our backend sends [{ date: "MM/DD", price: 123.45 }, ...]
-            // Recharts expects dataKey="price" (value) and label="date" (name)
-            
             const formattedData = res.data.map(item => ({
                 name: item.date,
                 value: item.price
@@ -127,19 +122,16 @@ function Dashboard({ username }) {
             setStockHistory(formattedData);
         } catch (err) {
             console.error("Failed to fetch history", err);
-            // Fallback or empty
             setStockHistory([]);
         }
     };
 
     if (loading) return <div className="loading">Loading Dashboard...</div>;
     
-    // Safeguard numerical values to prevent runtime crashes
     const totalValue = Number(portfolioData?.total_value || 0);
-    const totalCost = Number(portfolioData?.total_cost || 0);
     const gainLoss = Number(portfolioData?.overall_gain_loss || 0);
     const gainLossPercent = Number(portfolioData?.overall_gain_loss_percent || 0);
-    const formatMoney = (value = 0) => Number(value || 0).toFixed(2);
+    const formatMoney = (value = 0) => Number(value || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
     const formatPercent = (value = 0) => Number(value || 0).toFixed(2);
 
     return (
@@ -147,135 +139,149 @@ function Dashboard({ username }) {
             <div className="dashboard-content">
                 <div className="dashboard-header">
                     <h1>Welcome, {username}</h1>
-                    
-                    {/* Search Bar */}
-                    <form onSubmit={handleSearch} className="portfolio-search">
-                        <div className="search-wrapper">
-                            <Search size={20} />
-                            <input
-                                type="text"
-                                placeholder="Search ticker to add..."
-                                value={searchTicker}
-                                onChange={(e) => setSearchTicker(e.target.value)}
-                            />
+                </div>
+
+                <div className="dashboard-nav">
+                    <button className={activePage === "portfolio" ? "nav-btn active" : "nav-btn"} onClick={() => setActivePage("portfolio")}>Portfolio</button>
+                    <button className={activePage === "history" ? "nav-btn active" : "nav-btn"} onClick={() => setActivePage("history")}>Search History</button>
+                    <button className={activePage === "watchlist" ? "nav-btn active" : "nav-btn"} onClick={() => setActivePage("watchlist")}>Watchlist</button>
+                </div>
+
+                {activePage === "portfolio" && (
+                    <>
+                        <form onSubmit={handleSearch} className="portfolio-search">
+                            <div className="search-wrapper">
+                                <Search size={20} />
+                                <input
+                                    type="text"
+                                    placeholder="Search ticker to add..."
+                                    value={searchTicker}
+                                    onChange={(e) => setSearchTicker(e.target.value)}
+                                />
+                            </div>
+                            <button type="submit">Add Stock</button>
+                        </form>
+
+                        <div className="portfolio-summary-card">
+                            <h2>Total Portfolio Value</h2>
+                            <div className="value-display">
+                                <span className="currency">$</span>
+                                <span className="amount">{formatMoney(totalValue)}</span>
+                            </div>
+                            
+                            <div className={`pnl-indicator ${gainLoss >= 0 ? 'positive' : 'negative'}`}>
+                                {gainLoss >= 0 ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
+                                <span className="pnl-amount">
+                                    {gainLoss >= 0 ? '+' : ''}${Math.abs(gainLoss).toFixed(2)}
+                                </span>
+                                <span className="pnl-percent">({formatPercent(gainLossPercent)}%)</span>
+                            </div>
+
+                            {/* Overall PnL Graph */}
+                            <div className="portfolio-graph">
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <AreaChart data={portfolioHistory}>
+                                        <defs>
+                                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8}/>
+                                                <stop offset="95%" stopColor="#8884d8" stopOpacity={0}/>
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="date" />
+                                        <YAxis domain={['auto', 'auto']} />
+                                        <Tooltip formatter={(value) => [`$${value.toFixed(2)}`, 'Value']} />
+                                        <Area type="monotone" dataKey="value" stroke="#8884d8" fillOpacity={1} fill="url(#colorValue)" />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
                         </div>
-                        <button type="submit">Add Stock</button>
-                    </form>
-                </div>
 
-                {/* Portfolio Summary */}
-                <div className="portfolio-summary-card">
-                    <h2>Total Portfolio Value</h2>
-                    <div className="value-display">
-                        <span className="currency">$</span>
-                        <span className="amount">{totalValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                    </div>
-                    
-                    <div className={`pnl-indicator ${gainLoss >= 0 ? 'positive' : 'negative'}`}>
-                        {gainLoss >= 0 ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
-                        <span className="pnl-amount">
-                            {gainLoss >= 0 ? '+' : ''}
-                            ${Math.abs(gainLoss).toFixed(2)}
-                        </span>
-                        <span className="pnl-percent">
-                            ({gainLossPercent.toFixed(2)}%)
-                        </span>
-                    </div>
+                        <div className="holdings-section">
+                            <h3>Your Holdings</h3>
+                            <div className="holdings-grid">
+                                {portfolioData?.holdings?.map((stock) => (
+                                    <div key={stock.ticker} className={`holding-card ${selectedStock === stock.ticker ? 'selected' : ''}`}>
+                                        <div className="holding-header" onClick={() => selectStock(stock.ticker)}>
+                                            <div className="ticker-info">
+                                                <h4>{stock.ticker}</h4>
+                                                <span className="company-name">{stock.name}</span>
+                                                <span className="shares">{stock.quantity} shares</span>
+                                            </div>
+                                            <div className="price-info">
+                                                <div className="current-val">${formatMoney(stock.market_value)}</div>
+                                                <div className={`stock-pnl ${stock.gain_loss >= 0 ? 'green' : 'red'}`}>
+                                                    {stock.gain_loss >= 0 ? '+' : ''}{formatMoney(stock.gain_loss)} ({formatPercent(stock.gain_loss_percent)}%)
+                                                </div>
+                                            </div>
+                                        </div>
 
-                    {/* Overall Graph Placeholder (or use mock data for "Overall" if history not tracked) */}
-                    <div className="portfolio-graph">
-                        <ResponsiveContainer width="100%" height={200}>
-                            <LineChart data={[
-                                { name: 'Start', value: totalCost },
-                                { name: 'Now', value: totalValue }
-                            ]}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" />
-                                <YAxis />
-                                <Tooltip />
-                                <Line type="monotone" dataKey="value" stroke="#8884d8" strokeWidth={2} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
-                {/* Holdings List */}
-                <div className="holdings-section">
-                    <h3>Your Holdings</h3>
-                    <div className="holdings-grid">
-                        {portfolioData?.holdings?.map((stock) => (
-                            <div key={stock.ticker} className={`holding-card ${selectedStock === stock.ticker ? 'selected' : ''}`}>
-                                <div className="holding-header" onClick={() => selectStock(stock.ticker)}>
-                                    <div className="ticker-info">
-                                        <h4>{stock.ticker}</h4>
-                                        <span className="shares">{stock.quantity} shares</span>
+                                        {selectedStock === stock.ticker && (
+                                            <div className="holding-details">
+                                                <div className="mini-graph">
+                                                    <ResponsiveContainer width="100%" height={100}>
+                                                        <LineChart data={stockHistory}>
+                                                            <Line type="monotone" dataKey="value" stroke="#82ca9d" dot={false} />
+                                                            <Tooltip />
+                                                        </LineChart>
+                                                    </ResponsiveContainer>
+                                                </div>
+                                                <div className="holding-info-extra">
+                                                    <p>Avg Cost: ${formatMoney(stock.avg_price)}</p>
+                                                    <p>Bought: {stock.purchase_date}</p>
+                                                </div>
+                                                <div className="holding-actions">
+                                                    <button className="btn-buy" onClick={() => openTransactionModal(stock.ticker, "buy")}>
+                                                        <Plus size={16} /> Buy More
+                                                    </button>
+                                                    <button className="btn-sell" onClick={() => openTransactionModal(stock.ticker, "sell")}>
+                                                        <Minus size={16} /> Sell
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="price-info">
-                                        <div className="current-val">${formatMoney(stock.market_value)}</div>
-                                        <div className={`stock-pnl ${stock.gain_loss >= 0 ? 'green' : 'red'}`}>
-                                            {stock.gain_loss >= 0 ? '+' : ''}{formatMoney(stock.gain_loss)} ({formatPercent(stock.gain_loss_percent)}%)
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Expanded View */}
-                                {selectedStock === stock.ticker && (
-                                    <div className="holding-details">
-                                        <div className="mini-graph">
-                                            <ResponsiveContainer width="100%" height={100}>
-                                                <LineChart data={stockHistory}>
-                                                    <Line type="monotone" dataKey="value" stroke="#82ca9d" dot={false} />
-                                                </LineChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                        <div className="holding-actions">
-                                            <button className="btn-buy" onClick={() => openTransactionModal(stock.ticker, "buy")}>
-                                                <Plus size={16} /> Buy More
-                                            </button>
-                                            <button className="btn-sell" onClick={() => openTransactionModal(stock.ticker, "sell")}>
-                                                <Minus size={16} /> Sell
-                                            </button>
-                                        </div>
+                                ))}
+                                {portfolioData?.holdings?.length === 0 && (
+                                    <div className="empty-portfolio">
+                                        <p>You don't own any stocks yet. Search above to get started!</p>
                                     </div>
                                 )}
                             </div>
-                        ))}
-                        {portfolioData?.holdings?.length === 0 && (
-                            <div className="empty-portfolio">
-                                <p>You don't own any stocks yet. Search above to get started!</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
+                        </div>
+                    </>
+                )}
+                {activePage === "history" && <div className="placeholder-card"><h2>Search History</h2><p>Coming soon.</p></div>}
+                {activePage === "watchlist" && <div className="placeholder-card"><h2>Watchlist</h2><p>Coming soon.</p></div>}
             </div>
 
-            {/* Transaction Modal */}
             {showModal && (
                 <div className="modal-overlay">
                     <div className="modal-content">
                         <h3>{transactionType === 'buy' ? 'Buy' : 'Sell'} {transactionTicker}</h3>
-                        
                         {error && <p className="error-text">{error}</p>}
                         
                         <div className="form-group">
                             <label>Quantity</label>
-                            <input 
-                                type="number" 
-                                min="1"
-                                value={transactionQuantity}
-                                onChange={(e) => setTransactionQuantity(e.target.value)}
-                            />
+                            <input type="number" min="1" value={transactionQuantity} onChange={(e) => setTransactionQuantity(e.target.value)} />
                         </div>
                         
                         <div className="form-group">
                             <label>Price per Share ($)</label>
-                            <input 
-                                type="number" 
-                                step="0.01"
-                                value={transactionPrice}
-                                onChange={(e) => setTransactionPrice(e.target.value)}
-                            />
+                            <input type="number" step="0.01" value={transactionPrice} onChange={(e) => setTransactionPrice(e.target.value)} />
                         </div>
+
+                        {transactionType === 'buy' && (
+                            <div className="form-group">
+                                <label>Purchase Date</label>
+                                <input 
+                                    type="date" 
+                                    max={new Date().toISOString().split('T')[0]}
+                                    value={transactionDate} 
+                                    onChange={(e) => setTransactionDate(e.target.value)} 
+                                />
+                            </div>
+                        )}
 
                         <div className="modal-actions">
                             <button className="cancel-btn" onClick={() => setShowModal(false)}>Cancel</button>

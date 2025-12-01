@@ -17,6 +17,34 @@
     color: #1f2937;
 }
 
+.dashboard-nav {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.nav-btn {
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    cursor: pointer;
+    font-weight: 600;
+    color: #374151;
+    transition: all 0.15s ease;
+}
+
+.nav-btn.active {
+    background: #2563eb;
+    color: #fff;
+    border-color: #2563eb;
+    box-shadow: 0 10px 20px -10px rgba(37, 99, 235, 0.5);
+}
+
+.nav-btn:hover {
+    border-color: #2563eb;
+}
+
 .portfolio-search {
     display: flex;
     gap: 10px;
@@ -98,6 +126,14 @@
     color: #374151;
 }
 
+.placeholder-card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
 .holdings-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -135,6 +171,14 @@
     color: #111827;
 }
 
+.company-name {
+    display: block;
+    font-size: 0.85rem;
+    color: #6b7280;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
 .shares {
     color: #6b7280;
     font-size: 0.9rem;
@@ -144,19 +188,23 @@
     text-align: right;
 }
 
-.current-val {
-    font-weight: 700;
-    font-size: 1.1rem;
-}
+/* ... existing styles ... */
 
-.stock-pnl.green { color: #16a34a; }
-.stock-pnl.red { color: #dc2626; }
-
-/* Holding Details (Expanded) */
 .holding-details {
     margin-top: 20px;
     border-top: 1px solid #e5e7eb;
     padding-top: 15px;
+}
+
+.holding-info-extra {
+    display: flex;
+    justify-content: space-between;
+    margin: 10px 0;
+    font-size: 0.9rem;
+    color: #4b5563;
+    background: #f3f4f6;
+    padding: 8px 12px;
+    border-radius: 6px;
 }
 
 .holding-actions {
