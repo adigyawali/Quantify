@@ -10,7 +10,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def create_app():
-        app = Flask(__name__, static_folder="client/build", static_url_path="/")
+        # Construct absolute path to client/build (relative to this file)
+        base_dir = os.path.abspath(os.path.dirname(__file__))
+        static_dir = os.path.join(base_dir, '../../client/build')
+
+        app = Flask(__name__, static_folder=static_dir, static_url_path="/")
 
         # Serve React build
         @app.route("/")
