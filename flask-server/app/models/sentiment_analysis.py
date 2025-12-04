@@ -3,7 +3,7 @@ import torch
 
 tokenizer = AutoTokenizer.from_pretrained("yiyanghkust/finbert-tone")
 model = AutoModelForSequenceClassification.from_pretrained("yiyanghkust/finbert-tone")
-labels = ["bullish", "neutral", "bearish"]
+labels = ["neutral", "bullish", "bearish"]
 
 def analyzeSentiment(texts):
     inputs = tokenizer(texts, padding=True, truncation=True, max_length=512, return_tensors="pt")

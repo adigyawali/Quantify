@@ -50,19 +50,52 @@ def get_stock_news(ticker):
 
     news_data = r.json()
 
-    # Extract up to 20 headlines with full metadata
+    # Filter for relevant keywords to ensure news is about company actions/projections
+    keywords = [
+        "announce", "launch", "reveal", "unveil", "project", "forecast",
+        "expect", "estimate", "report", "earnings", "quarter", "revenue",
+        "profit", "loss", "growth", "expand", "acquire", "merge", "partner",
+        "collaborate", "approve", "regulate", "sue", "settle", "invest",
+        "divest", "buy", "sell", "upgrade", "downgrade", "target", "price",
+        "split", "dividend", "authorize", "appoint", "resign", "suspend"
+    ]
+
     articles = []
     headlines = []
-    for item in news_data[:20]:
+    
+    # Iterate through all returned news, not just the first 20
+    for item in news_data:
+        if len(articles) >= 20:
+            break
+            
         if "headline" in item:
-            headlines.append(item["headline"])
-            articles.append({
-                "headline": item["headline"],
-                "url": item.get("url", ""),
-                "source": item.get("source", ""),
-                "publishedAt": item.get("datetime", 0),  # timestamp in seconds
-                "summary": item.get("summary", "")
-            })
+            headline_text = item["headline"]
+            summary_text = item.get("summary", "")
+            full_text = (headline_text + " " + summary_text).lower()
+            
+            # Check if any keyword is in the text
+            if any(kw in full_text for kw in keywords):
+                headlines.append(headline_text)
+                articles.append({
+                    "headline": headline_text,
+                    "url": item.get("url", ""),
+                    "source": item.get("source", ""),
+                    "publishedAt": item.get("datetime", 0),
+                    "summary": summary_text
+                })
+    
+    # Fallback: If strict filtering yields nothing, take top 5 from original to avoid empty
+    if not articles and news_data:
+        for item in news_data[:5]:
+             if "headline" in item:
+                headlines.append(item["headline"])
+                articles.append({
+                    "headline": item["headline"],
+                    "url": item.get("url", ""),
+                    "source": item.get("source", ""),
+                    "publishedAt": item.get("datetime", 0),
+                    "summary": item.get("summary", "")
+                })
 
     if not headlines:
         return jsonify({"message": "No recent news found"}), 404
