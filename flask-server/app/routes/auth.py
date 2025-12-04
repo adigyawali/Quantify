@@ -10,12 +10,12 @@ import datetime
 from flask import Blueprint, jsonify, request
 import sqlite3
 from flask_cors import cross_origin
+from ..config import get_db_path
 
 
 
 # Set up connection to the database
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-filename = os.path.join(BASE_DIR, "..", "..", "userInfo.db")
+filename = get_db_path()
 
 #Get the Key for the JWT token
 load_dotenv()
