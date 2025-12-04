@@ -41,7 +41,7 @@ function Dashboard({ username }) {
             return;
         }
         fetchPortfolio();
-    }, [navigate]);
+    }, [navigate, fetchPortfolio]);
 
     const fetchPortfolio = async () => {
         const token = localStorage.getItem("token");
