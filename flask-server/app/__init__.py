@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def create_app():
-        app = Flask(__name__, static_folder="../client/build", static_url_path="/")
+        app = Flask(__name__, static_folder="client/build", static_url_path="/")
 
         # Serve React build
         @app.route("/")
