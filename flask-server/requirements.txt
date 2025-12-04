@@ -1,7 +1,0 @@
-Flask
-Flask-Cors
-python-dotenv
-requests
-transformers
-torch
-gunicorn
