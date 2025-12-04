@@ -1,31 +1,43 @@
 import sqlite3
 import os
+import sys
+
+# Add the current directory to sys.path to allow importing from app.config
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from app.config import get_db_path
 
 # Set up connection to the database
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-filename = os.path.join(BASE_DIR, "userInfo.db")
+filename = get_db_path()
 
 def init_db():
     conn = sqlite3.connect(filename)
     cursor = conn.cursor()
 
+    # Create user table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user (
+            userID TEXT PRIMARY KEY,
+            password TEXT NOT NULL
+        )
+    """)
+
     # Create holdings table if not exists
-    # id: unique id for the holding entry
-    # user_id: the user who owns the stock (foreign key to user.userID)
-    # ticker: stock symbol
-    # quantity: number of shares
-    # avg_price: average purchase price per share
+    # Added company_name and purchase_date to match portfolio_routes.py
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS holdings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id TEXT NOT NULL,
             ticker TEXT NOT NULL,
             quantity INTEGER NOT NULL,
-            avg_price REAL NOT NULL
+            avg_price REAL NOT NULL,
+            company_name TEXT,
+            purchase_date TEXT,
+            FOREIGN KEY(user_id) REFERENCES user(userID)
         )
     """)
     
-    print("Created holdings table.")
+    print("Database initialized (user and holdings tables created).")
 
     conn.commit()
     conn.close()

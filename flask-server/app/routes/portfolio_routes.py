@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import jwt
 import time
 from datetime import datetime, timedelta
+from ..config import get_db_path
 
 # Load environment variables
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -14,7 +15,7 @@ load_dotenv(ENV_PATH)
 
 API_KEY = os.getenv("FINNHUB_API_KEY")
 SECRET_KEY = os.getenv("SECRET_KEY")
-DB_PATH = os.path.join(BASE_DIR, "..", "..", "userInfo.db")
+DB_PATH = get_db_path()
 
 portfolio_routes = Blueprint("portfolio", __name__)
 
