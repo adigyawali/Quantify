@@ -1,14 +1,12 @@
 import os, requests
 from flask import Blueprint, jsonify
 from datetime import date, timedelta
-from dotenv import load_dotenv
 from .sentiment_analysis import analyzeSentiment  # import the FinBERT helper
 
-# Load environment variables
+# Environment variables are loaded in app/__init__.py
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ENV_PATH = os.path.join(BASE_DIR, "..", ".env")
-load_dotenv(ENV_PATH)
-API_KEY = os.getenv("FINNHUB_API_KEY")
+# API_KEY and ALPHA_KEY will be read dynamically from os.environ in the functions
+# to ensure they pick up the latest environment state.
 
 # Flask Blueprint for stock routes
 stock_routes = Blueprint("stocks", __name__)
@@ -19,8 +17,10 @@ def get_stock_news(ticker):
     Fetch news for a given stock ticker from Finnhub,
     run sentiment analysis with FinBERT, and return JSON.
     """
+    api_key = os.environ.get("FINNHUB_API_KEY")
 
-    if not API_KEY:
+    if not api_key:
+        print("Error: FINNHUB_API_KEY not found in environment variables.") # Debug log
         return jsonify({"error": "FINNHUB_API_KEY is not configured on the server"}), 500
 
     # Date range for the last 7 days
@@ -33,7 +33,7 @@ def get_stock_news(ticker):
         "symbol": ticker,
         "from": range_from.strftime("%Y-%m-%d"),
         "to": range_to.strftime("%Y-%m-%d"),
-        "token": API_KEY
+        "token": api_key
     }
     headers = {
         "Accept-Encoding": "identity"  # Force no compression to see if that helps
@@ -122,7 +122,7 @@ def get_stock_history(ticker):
     """
     Fetch historical candle data for a stock from Alpha Vantage (Intraday).
     """
-    alpha_key = os.getenv("ALPHA_VANTAGE_KEY")
+    alpha_key = os.environ.get("ALPHA_VANTAGE_KEY")
     if not alpha_key:
         return jsonify({"error": "API Key missing"}), 500
 
