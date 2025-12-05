@@ -2,19 +2,17 @@ import os
 import sqlite3
 from flask import Blueprint, jsonify, request
 import requests
-from dotenv import load_dotenv
 import jwt
 import time
 from datetime import datetime, timedelta
 from ..config import get_db_path
 
-# Load environment variables
+# Environment variables are loaded in app/__init__.py
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ENV_PATH = os.path.join(BASE_DIR, "..", ".env")
-load_dotenv(ENV_PATH)
+# ENV_PATH is no longer needed for loading, as variables are already in os.environ
 
-API_KEY = os.getenv("FINNHUB_API_KEY")
-SECRET_KEY = os.getenv("SECRET_KEY")
+API_KEY = os.environ.get("FINNHUB_API_KEY")
+SECRET_KEY = os.environ.get("SECRET_KEY")
 DB_PATH = get_db_path()
 
 portfolio_routes = Blueprint("portfolio", __name__)

@@ -1,15 +1,23 @@
 import os
+import sys
 from dotenv import load_dotenv
+
+# Load environment variables from .env file (if present)
+# This should happen as early as possible
+load_dotenv()
+
 from flask import Flask, send_from_directory
 from flask_cors import CORS
 from .routes.home_routes import home_routes
 from .routes.auth import auth_routes 
 from .models.stockRoute import stock_routes
 from .routes.portfolio_routes import portfolio_routes
-from dotenv import load_dotenv
-load_dotenv()
 
 def create_app():
+        # Debugging: Print status of critical environment variables
+        print(f"Starting app. FINNHUB_API_KEY present: {'Yes' if os.environ.get('FINNHUB_API_KEY') else 'No'}")
+        print(f"Starting app. SECRET_KEY present: {'Yes' if os.environ.get('SECRET_KEY') else 'No'}")
+
         # Construct absolute path to client/build (relative to this file)
         base_dir = os.path.abspath(os.path.dirname(__file__))
         static_dir = os.path.join(base_dir, '../../client/build')
