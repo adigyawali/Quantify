@@ -2,15 +2,15 @@
 
 # Startup script for Azure App Service
 
+echo "Starting deployment script..."
+
 # Navigate to the application directory
 cd flask-server
 
 # Run database initialization
-# This will use the DATABASE_FILE_PATH environment variable if set
+echo "Initializing database..."
 python init_db.py
 
 # Start the Gunicorn server
-# -w 4: Use 4 worker processes (adjust based on instance size)
-# -b 0.0.0.0:8000: Bind to port 8000
-# app:create_app(): Call the create_app factory function in app/__init__.py
+echo "Starting Gunicorn..."
 gunicorn -w 1 -b 0.0.0.0:8000 "app:create_app()" --timeout 600
