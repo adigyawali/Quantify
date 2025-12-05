@@ -11,6 +11,15 @@ from app.config import get_db_path
 filename = get_db_path()
 
 def init_db():
+    # Set up connection to the database
+    db_dir = os.path.dirname(filename)
+    if db_dir and not os.path.exists(db_dir):
+        try:
+            os.makedirs(db_dir)
+            print(f"Created database directory: {db_dir}")
+        except OSError as e:
+            print(f"Error creating database directory {db_dir}: {e}")
+
     conn = sqlite3.connect(filename)
     cursor = conn.cursor()
 
