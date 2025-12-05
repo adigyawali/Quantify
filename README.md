@@ -33,7 +33,3 @@ Quantify blends real-time market data with AI-powered news sentiment so you can 
 - **Frontend:** React, React Router, Recharts, Lucide icons
 - **Backend:** Flask, JWT auth, Finnhub news feed, FinBERT sentiment analysis
 - **Data:** SQLite for users/portfolio, local storage for session tokens
-
----
-
-Built to make market research feel effortless. Enjoy exploring Quantify. 🧠📈
