@@ -10,7 +10,7 @@ from flask import Flask, send_from_directory
 from flask_cors import CORS
 from .routes.home_routes import home_routes
 from .routes.auth import auth_routes 
-from .models.stockRoute import stock_routes
+from .routes.stock_routes import stock_routes
 from .routes.portfolio_routes import portfolio_routes
 
 def create_app():

@@ -1,0 +1,161 @@
+/* =========================================================
+   TICKER SEARCH — autocomplete dropdown
+   ========================================================= */
+
+.tk-search {
+  position: relative;
+  width: 100%;
+}
+
+.tk-search-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: rgba(14, 17, 24, 0.96);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  max-height: 480px;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.tk-search-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px var(--s-4) 6px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.tk-search-section button {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.tk-search-section button:hover { color: var(--brand-300); }
+
+.tk-search-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.tk-search-item {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: var(--s-3);
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease-out-soft);
+  color: var(--text-secondary);
+}
+.tk-search-item:hover,
+.tk-search-item--active {
+  background: var(--surface-3);
+  color: var(--text-primary);
+}
+
+.tk-search-badge {
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+  background: var(--surface-3);
+  color: var(--text-primary);
+  border-radius: 8px;
+  letter-spacing: -0.01em;
+}
+.tk-search-item--active .tk-search-badge {
+  background: var(--grad-brand);
+  color: white;
+  box-shadow: 0 0 16px rgba(124,92,255,0.45);
+}
+
+.tk-search-meta { min-width: 0; }
+.tk-search-tk { font-weight: 600; font-size: var(--fs-sm); letter-spacing: -0.005em; }
+.tk-search-name {
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tk-search-hl {
+  background: linear-gradient(180deg, transparent 55%, rgba(124,92,255,0.35) 55%);
+  color: var(--text-primary);
+  font-weight: 600;
+  padding: 0 1px;
+  border-radius: 2px;
+}
+
+.tk-search-side {
+  display: flex; flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  font-weight: 600;
+}
+.tk-search-sector { color: var(--text-tertiary); }
+
+.tk-search-empty {
+  padding: var(--s-8) var(--s-5);
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: var(--fs-sm);
+}
+
+.tk-search-loading {
+  padding: var(--s-5) var(--s-4);
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.tk-search-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px var(--s-4);
+  border-top: 1px solid var(--border-subtle);
+  font-size: 10px;
+  color: var(--text-muted);
+  background: rgba(8, 10, 16, 0.5);
+}
+.tk-search-foot kbd {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  border: 1px solid var(--border-soft);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-tertiary);
+  margin-right: 4px;
+}
+
+.tk-search-spinner-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 18px;
+  color: var(--text-tertiary);
+  font-size: var(--fs-sm);
+}
+
+/* Page-size variant (used on /search) */
+.tk-search--large .ui-input-wrap { height: 64px; padding: 0 var(--s-5); border-radius: var(--r-lg); }
+.tk-search--large .ui-input { font-size: var(--fs-xl); font-weight: 500; }
+.tk-search--large .tk-search-panel { border-radius: var(--r-xl); }

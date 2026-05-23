@@ -1,0 +1,165 @@
+/* =========================================================
+   SENTIMENT VERDICT — rich explainable card
+   ========================================================= */
+
+.sv {
+  position: relative;
+  padding: var(--s-6);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  background: var(--surface-1);
+  border: 1px solid var(--border-soft);
+}
+.sv::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.sv--bullish::before { background: radial-gradient(ellipse at top, var(--bull-soft), transparent 70%); }
+.sv--bearish::before { background: radial-gradient(ellipse at top, var(--bear-soft), transparent 70%); }
+.sv--neutral::before { background: radial-gradient(ellipse at top, var(--neutral-soft), transparent 70%); }
+.sv--mixed::before   { background: radial-gradient(ellipse at top, var(--surface-3), transparent 70%); }
+
+.sv > * { position: relative; z-index: 1; }
+
+.sv-eyebrow {
+  display: flex; align-items: center; gap: 6px;
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+
+.sv-verdict {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+}
+.sv-label {
+  font-size: clamp(28px, 3.2vw, 40px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.sv-label--bullish { color: var(--bull); }
+.sv-label--bearish { color: var(--bear); }
+.sv-label--neutral { color: var(--neutral); }
+.sv-label--mixed   { color: var(--text-secondary); }
+
+.sv-score {
+  font-family: var(--font-mono);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-secondary);
+}
+
+.sv-meter-wrap { display: flex; flex-direction: column; gap: 10px; }
+
+.sv-confidence {
+  display: flex; align-items: center; gap: 10px;
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+}
+.sv-confidence-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+  position: relative;
+}
+.sv-confidence-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--grad-brand);
+  box-shadow: 0 0 12px rgba(124,92,255,0.4);
+  transition: width 700ms var(--ease-out-soft);
+}
+.sv-confidence-value {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text-primary);
+  min-width: 38px;
+  text-align: right;
+}
+
+.sv-explain {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  line-height: 1.55;
+  padding: var(--s-4);
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border-subtle);
+}
+.sv-explain strong { color: var(--text-primary); }
+
+.sv-meta-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-3);
+}
+.sv-meta {
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border-subtle);
+}
+.sv-meta-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+.sv-meta-value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  margin-top: 4px;
+  letter-spacing: -0.01em;
+}
+.sv-momentum--up { color: var(--bull); }
+.sv-momentum--down { color: var(--bear); }
+.sv-momentum--flat { color: var(--text-secondary); }
+
+.sv-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sv-source-chip {
+  padding: 3px 9px;
+  border-radius: var(--r-sm);
+  background: var(--surface-3);
+  border: 1px solid var(--border-soft);
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* ───── per-article impact bar ────── */
+.impact-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+  margin-top: 6px;
+}
+.impact-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 700ms var(--ease-out-soft);
+}
+.impact-fill--bull { background: var(--bull); box-shadow: 0 0 8px var(--bull-glow); }
+.impact-fill--bear { background: var(--bear); box-shadow: 0 0 8px var(--bear-glow); }
+.impact-fill--neutral { background: var(--neutral); }
+.impact-fill--mixed { background: linear-gradient(90deg, var(--bull), var(--bear)); }
