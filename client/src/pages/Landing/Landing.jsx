@@ -166,9 +166,7 @@ export default function Landing() {
               <Button as={Link} to="/signup" size="xl" trailing={<ArrowRight size={16} />}>
                 Create account — free
               </Button>
-              <Button as={Link} to="/login" variant="secondary" size="xl" leading={<PlayCircle size={16} />}>
-                Watch live demo
-              </Button>
+              
             </>
           )}
         </motion.div>
@@ -359,10 +357,9 @@ export default function Landing() {
           viewport={{ once: true }}
           transition={{ duration: 0.7 }}
         >
-          <h2 className="cta-title">Trade with the conviction of an institution.</h2>
+          <h2 className="cta-title">Trade with accuracy and confidence.</h2>
           <p className="cta-sub">
-            Create an account in 30 seconds — no card, no commitment. Your portfolio and watchlists
-            are private to you.
+
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             {isAuthed ? (
@@ -386,7 +383,7 @@ export default function Landing() {
       <footer className="landing-footer">
         <div className="landing-footer-brand">
           <BrandMark size={26} />
-          Tickr · market intelligence, clarified
+          Tickr · market intelligence
         </div>
         <div>© {new Date().getFullYear()} Tickr. All rights reserved.</div>
       </footer>

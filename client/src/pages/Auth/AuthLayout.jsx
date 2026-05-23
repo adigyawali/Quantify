@@ -33,8 +33,7 @@ export default function AuthLayout({ children, title, sub }) {
             <span className="accent">clarified</span>.
           </h2>
           <p className="auth-visual-sub">
-            Tickr turns the firehose of market news, sentiment, and price action
-            into a single, calm signal you can actually act on.
+            Market news, sentiment, and price action
           </p>
 
           <ul className="auth-pillars">
