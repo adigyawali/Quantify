@@ -41,7 +41,13 @@ fi
 
 # 3. Push to Azure
 echo "▸ Pushing to Azure App Service…"
-az webapp up --name "$APP_NAME" --resource-group "$RG"
+az webapp up \
+  --name "$APP_NAME" \
+  --resource-group "$RG" \
+  --plan "$PLAN" \
+  --runtime "$RUNTIME" \
+  --location "$LOCATION" \
+  --os-type Linux
 
 echo
 echo "✓ Done — https://${APP_NAME}.azurewebsites.net"
