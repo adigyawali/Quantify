@@ -10,7 +10,6 @@ import {
   Activity,
   Zap,
   Globe,
-  PlayCircle,
 } from 'lucide-react';
 import { BrandMark } from '../../components/ui/BrandMark';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';

@@ -11,6 +11,9 @@ venv/
 # Flask environment variables
 .env
 
+# Local Azure deploy shell variables
+.azureenv
+
 # Logs
 *.log
 
