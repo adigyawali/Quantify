@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Briefcase, TrendingUp, ArrowUpRight, Plus, ArrowRight } from 'lucide-react';
+import { getDailyQuote, getRandomQuote } from '../../lib/quotes';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
 } from 'recharts';
@@ -14,26 +15,17 @@ import DeltaPill from '../../components/ui/DeltaPill';
 import Sparkline from '../../components/ui/Sparkline';
 import EmptyState from '../../components/ui/EmptyState';
 import { useAuth } from '../../lib/auth';
-import { portfolioApi } from '../../lib/api';
+import { portfolioApi, stockApi } from '../../lib/api';
 import { getWatchlist } from '../../lib/watchlist';
 import { formatMoney, formatSignedCurrency, formatCompact } from '../../lib/format';
 import './Dashboard.css';
 
-const MOCK_MOVERS = [
-  { sym: 'NVDA', name: 'NVIDIA Corp',    price: 924.51, delta: 2.41 },
-  { sym: 'TSLA', name: 'Tesla Inc',      price: 254.92, delta: 4.17 },
-  { sym: 'META', name: 'Meta Platforms', price: 562.18, delta: 1.92 },
-  { sym: 'AAPL', name: 'Apple Inc',      price: 213.18, delta: 0.83 },
-  { sym: 'AMD',  name: 'AMD',            price: 158.74, delta: -1.34 },
-  { sym: 'MSFT', name: 'Microsoft',      price: 421.67, delta: -0.42 },
-];
-
-const MOCK_PULSE = [
-  { label: 'S&P 500',     value: '+0.42%', color: 'var(--bull)' },
-  { label: 'Nasdaq',      value: '+0.91%', color: 'var(--bull)' },
-  { label: 'Russell 2000',value: '-0.18%', color: 'var(--bear)' },
-  { label: 'VIX',         value: '14.21',  color: 'var(--neutral)' },
-  { label: 'BTC / USD',   value: '+1.84%', color: 'var(--bull)' },
+const MARKET_INDEX_TICKERS = [
+  { ticker: 'SPY',  label: 'S&P 500' },
+  { ticker: 'QQQ',  label: 'Nasdaq 100' },
+  { ticker: 'DIA',  label: 'Dow Jones' },
+  { ticker: 'IWM',  label: 'Russell 2000' },
+  { ticker: 'VIX',  label: 'VIX', skipForChange: true },
 ];
 
 function genMiniSeries(seed = 1, n = 24) {
@@ -64,6 +56,19 @@ export default function Dashboard() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errored, setErrored] = useState(false);
+  const [quote, setQuote] = useState(() => getDailyQuote());
+  const [movers, setMovers] = useState(null);
+  const [moversLoading, setMoversLoading] = useState(true);
+  const [indices, setIndices] = useState({});
+  const [indicesLoading, setIndicesLoading] = useState(true);
+
+  // Auto-rotate quote every 25 seconds.
+  useEffect(() => {
+    const id = setInterval(() => setQuote((cur) => getRandomQuote(cur)), 25000);
+    return () => clearInterval(id);
+  }, []);
+  const firstName = user?.first_name?.trim();
+  const greetingName = firstName || user?.displayName?.split(' ')[0] || user?.username || 'trader';
 
   useEffect(() => {
     let mounted = true;
@@ -76,6 +81,41 @@ export default function Dashboard() {
       .catch(() => { if (mounted) setErrored(true); })
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
+  }, []);
+
+  // Live movers — server-cached + auto-refresh every 45s
+  useEffect(() => {
+    let mounted = true;
+    let timer;
+    const load = () => stockApi.movers(6)
+      .then((res) => { if (mounted) setMovers(res.data); })
+      .catch(() => { if (mounted) setMovers(null); })
+      .finally(() => { if (mounted) setMoversLoading(false); });
+    load();
+    timer = setInterval(load, 45000);
+    return () => { mounted = false; clearInterval(timer); };
+  }, []);
+
+  // Index quotes for market pulse
+  useEffect(() => {
+    let mounted = true;
+    let timer;
+    const load = async () => {
+      const results = await Promise.allSettled(
+        MARKET_INDEX_TICKERS.map((idx) => stockApi.quote(idx.ticker))
+      );
+      if (!mounted) return;
+      const next = {};
+      results.forEach((r, i) => {
+        const idx = MARKET_INDEX_TICKERS[i];
+        if (r.status === 'fulfilled') next[idx.ticker] = r.value.data;
+      });
+      setIndices(next);
+      setIndicesLoading(false);
+    };
+    load();
+    timer = setInterval(load, 60000);
+    return () => { mounted = false; clearInterval(timer); };
   }, []);
 
   // Aggregate holdings by ticker (backend stores lots separately)
@@ -124,7 +164,7 @@ export default function Dashboard() {
       {/* greeting */}
       <header className="dash-greet">
         <div>
-          <h1>{greeting()}, <span className="accent">{user?.username || 'trader'}</span></h1>
+          <h1>{greeting()}, <span className="accent">{greetingName}</span></h1>
           <div className="dash-greet-sub">
             Here's what's moving in your world — {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}.
           </div>
@@ -138,6 +178,22 @@ export default function Dashboard() {
           </Button>
         </div>
       </header>
+
+      <AnimatePresence mode="wait">
+        <motion.p
+          key={quote}
+          className="dash-quote"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          onClick={() => setQuote((cur) => getRandomQuote(cur))}
+          title="Tap for another"
+        >
+          <span className="dash-quote-glyph" aria-hidden>“</span>
+          {quote}
+        </motion.p>
+      </AnimatePresence>
 
       {/* hero */}
       <section className="dash-hero">
@@ -303,52 +359,124 @@ export default function Dashboard() {
         )}
       </section>
 
-      {/* movers + pulse */}
+      {/* movers + pulse — real data, server-cached */}
       <section className="dash-row-2">
         <Card>
           <div className="dash-section-head" style={{ marginBottom: 16 }}>
             <h2>Market movers</h2>
-            <Badge variant="brand">DEMO</Badge>
+            {movers?.market?.state && (
+              <Badge variant={movers.market.state === 'open' ? 'bull' : 'neutral'} live={movers.market.state === 'open'}>
+                {movers.market.label || 'Market'}
+              </Badge>
+            )}
           </div>
-          <div className="movers-list">
-            {MOCK_MOVERS.map((m, i) => (
-              <Link key={m.sym} to={`/stock/${m.sym}`} className="movers-item">
-                <div className="movers-rank">{i + 1}</div>
-                <div>
-                  <div className="movers-tk">{m.sym}</div>
-                  <div className="movers-name">{m.name}</div>
+          {moversLoading ? (
+            <div className="movers-list">
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="movers-item" style={{ pointerEvents: 'none' }}>
+                  <Skeleton width={28} height={28} radius={6} />
+                  <div style={{ flex: 1 }}>
+                    <Skeleton width={60} height={12} />
+                    <div style={{ height: 4 }} />
+                    <Skeleton width={120} height={10} />
+                  </div>
+                  <Skeleton width={80} height={28} />
+                  <Skeleton width={70} height={28} />
                 </div>
-                <div>
-                  <Sparkline
-                    data={genMiniSeries(m.sym.charCodeAt(0) * 31, 20)}
-                    width={80}
-                    height={28}
-                    color={m.delta >= 0 ? 'var(--bull)' : 'var(--bear)'}
-                  />
+              ))}
+            </div>
+          ) : (movers?.gainers?.length || movers?.losers?.length) ? (
+            <div className="movers-cols">
+              <div className="movers-col">
+                <div className="movers-col-head">
+                  <span className="movers-col-label up">Top gainers</span>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div className="movers-price">${m.price.toFixed(2)}</div>
-                  <DeltaPill value={m.delta} />
+                <div className="movers-list">
+                  {(movers.gainers || []).map((m, i) => (
+                    <Link key={`g-${m.ticker}`} to={`/stock/${m.ticker}`} className="movers-item">
+                      <div className="movers-rank">{i + 1}</div>
+                      <div className="movers-meta">
+                        <div className="movers-tk">{m.ticker}</div>
+                        <div className="movers-name text-mono">${formatMoney(m.price)}</div>
+                      </div>
+                      <div className="movers-spark">
+                        <Sparkline
+                          data={genMiniSeries(m.ticker.charCodeAt(0) * 31, 20)}
+                          width={64}
+                          height={24}
+                          color="var(--bull)"
+                        />
+                      </div>
+                      <DeltaPill value={m.change_percent} />
+                    </Link>
+                  ))}
                 </div>
-              </Link>
-            ))}
-          </div>
+              </div>
+              <div className="movers-col">
+                <div className="movers-col-head">
+                  <span className="movers-col-label down">Top losers</span>
+                </div>
+                <div className="movers-list">
+                  {(movers.losers || []).map((m, i) => (
+                    <Link key={`l-${m.ticker}`} to={`/stock/${m.ticker}`} className="movers-item">
+                      <div className="movers-rank">{i + 1}</div>
+                      <div className="movers-meta">
+                        <div className="movers-tk">{m.ticker}</div>
+                        <div className="movers-name text-mono">${formatMoney(m.price)}</div>
+                      </div>
+                      <div className="movers-spark">
+                        <Sparkline
+                          data={genMiniSeries(m.ticker.charCodeAt(0) * 31, 20)}
+                          width={64}
+                          height={24}
+                          color="var(--bear)"
+                        />
+                      </div>
+                      <DeltaPill value={m.change_percent} />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <EmptyState
+              icon={<TrendingUp size={26} />}
+              title="No movers right now"
+              description="Live mover data will appear when the market data provider is reachable."
+            />
+          )}
         </Card>
 
         <Card className="pulse-card">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2 style={{ fontSize: 'var(--fs-xl)', fontWeight: 600 }}>Market pulse</h2>
-            <Badge variant="bull" live>LIVE</Badge>
+            {indices.SPY?.market?.state ? (
+              <Badge variant={indices.SPY.market.state === 'open' ? 'bull' : 'neutral'} live={indices.SPY.market.state === 'open'}>
+                {indices.SPY.market.label}
+              </Badge>
+            ) : <Badge variant="neutral">Loading</Badge>}
           </div>
-          {MOCK_PULSE.map((p) => (
-            <div className="pulse-row" key={p.label}>
-              <div className="pulse-label">
-                <span className="pulse-dot" style={{ background: p.color, color: p.color }} />
-                {p.label}
+          {MARKET_INDEX_TICKERS.map((idx) => {
+            const q = indices[idx.ticker];
+            const pct = q?.change_percent;
+            const isLoading = indicesLoading && !q;
+            const color = pct == null ? 'var(--text-tertiary)'
+              : pct > 0 ? 'var(--bull)'
+              : pct < 0 ? 'var(--bear)' : 'var(--neutral)';
+            return (
+              <div className="pulse-row" key={idx.ticker}>
+                <div className="pulse-label">
+                  <span className="pulse-dot" style={{ background: color, color }} />
+                  {idx.label}
+                </div>
+                <div className="pulse-value" style={{ color }}>
+                  {isLoading ? <Skeleton width={70} height={14} /> :
+                   pct != null ? `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%` :
+                   q?.price != null ? `$${formatMoney(q.price)}` : '—'}
+                </div>
               </div>
-              <div className="pulse-value" style={{ color: p.color }}>{p.value}</div>
-            </div>
-          ))}
+            );
+          })}
           <Button variant="ghost" size="sm" trailing={<ArrowUpRight size={14} />} as={Link} to="/search">
             Explore more
           </Button>

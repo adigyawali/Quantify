@@ -50,6 +50,12 @@
   font-family: var(--font-mono);
   font-size: var(--fs-sm);
   margin-top: 4px;
+  word-break: break-word;
+}
+.profile-email { color: var(--text-muted); }
+@media (max-width: 560px) {
+  .profile-hero { flex-direction: column; text-align: center; padding: var(--s-6); }
+  .profile-tags { justify-content: center; }
 }
 .profile-tags {
   display: flex; gap: 8px;

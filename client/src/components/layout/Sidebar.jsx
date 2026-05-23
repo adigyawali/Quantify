@@ -1,7 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
-  TrendingUp,
   Briefcase,
   Star,
   Search,
@@ -12,6 +11,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { cx } from '../../lib/format';
 import { useAuth } from '../../lib/auth';
+import { BrandMark } from '../ui/BrandMark';
 
 const NAV_PRIMARY = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -26,7 +26,17 @@ const NAV_SECONDARY = [
 
 export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onMobileClose }) {
   const { user } = useAuth();
-  const initial = (user?.username || '?').slice(0, 1).toUpperCase();
+  const displayName =
+    user?.displayName ||
+    [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim() ||
+    user?.username ||
+    '';
+  const initial = (() => {
+    const parts = displayName.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (user?.username || '?').slice(0, 1).toUpperCase();
+  })();
 
   return (
     <>
@@ -44,10 +54,8 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onMob
 
       <aside className={cx('sidebar', collapsed && 'sidebar--collapsed', mobileOpen && 'sidebar--open')}>
         <NavLink to={user ? '/dashboard' : '/'} className="sidebar-brand" onClick={onMobileClose}>
-          <div className="sidebar-mark">
-            <TrendingUp size={18} strokeWidth={2.5} />
-          </div>
-          <span className="sidebar-wordmark">Sentivest</span>
+          <BrandMark size={34} />
+          <span className="sidebar-wordmark">Tickr</span>
         </NavLink>
 
         <nav className="sidebar-section">
@@ -89,8 +97,8 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onMob
             <NavLink to="/profile" className="sidebar-user" onClick={onMobileClose}>
               <div className="sidebar-user-avatar">{initial}</div>
               <div className="sidebar-user-meta">
-                <span className="sidebar-user-name">{user.username}</span>
-                <span className="sidebar-user-role">Pro Trader</span>
+                <span className="sidebar-user-name" title={displayName}>{displayName}</span>
+                <span className="sidebar-user-role">@{user.username}</span>
               </div>
             </NavLink>
           )}

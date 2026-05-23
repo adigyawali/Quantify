@@ -2,37 +2,50 @@ import sqlite3
 import os
 import sys
 
-# Add the current directory to sys.path to allow importing from app.config
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.config import get_db_path
 
-# Set up connection to the database
 filename = get_db_path()
 
+
+def _column_names(cursor, table: str) -> set:
+    cursor.execute(f"PRAGMA table_info({table})")
+    return {row[1] for row in cursor.fetchall()}
+
+
 def init_db():
-    # Set up connection to the database
     db_dir = os.path.dirname(filename)
     if db_dir and not os.path.exists(db_dir):
         try:
-            os.makedirs(db_dir)
+            os.makedirs(db_dir, exist_ok=True)
             print(f"Created database directory: {db_dir}")
         except OSError as e:
             print(f"Error creating database directory {db_dir}: {e}")
+            # Don't crash app boot — the connect() below will surface the real issue.
 
     conn = sqlite3.connect(filename)
     cursor = conn.cursor()
 
-    # Create user table
+    # user table (preserving existing rows if present)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS user (
             userID TEXT PRIMARY KEY,
-            password TEXT NOT NULL
+            password TEXT NOT NULL,
+            first_name TEXT,
+            last_name TEXT,
+            email TEXT
         )
     """)
 
-    # Create holdings table if not exists
-    # Added company_name and purchase_date to match portfolio_routes.py
+    # Migrate existing installations that pre-date the profile columns.
+    existing = _column_names(cursor, "user")
+    for col in ("first_name", "last_name", "email"):
+        if col not in existing:
+            cursor.execute(f"ALTER TABLE user ADD COLUMN {col} TEXT")
+            print(f"Migrated user table: added {col}")
+
+    # holdings table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS holdings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,11 +58,11 @@ def init_db():
             FOREIGN KEY(user_id) REFERENCES user(userID)
         )
     """)
-    
-    print("Database initialized (user and holdings tables created).")
 
+    print("Database initialized.")
     conn.commit()
     conn.close()
+
 
 if __name__ == "__main__":
     init_db()

@@ -1,22 +1,22 @@
-import sys
+"""
+WSGI entrypoint for gunicorn.
+
+`startup.sh` (used by Azure App Service) calls `python flask-server/init_db.py`
+before launching gunicorn against `run:app`. Keeping the bootstrap inside
+that module — not at import time — means a broken DB path doesn't take down
+the whole process before logs can flush.
+"""
 import os
+import sys
 
-# Add flask-server to the python path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'flask-server'))
+# Make the flask-server package importable when this file is the working dir.
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "flask-server"))
 
-from app import create_app
-
-# Initialize the database before starting the app
-try:
-    from init_db import init_db
-    init_db()
-except ImportError:
-    # Fallback if running from a different context, though sys.path should handle it
-    print("Warning: Could not import init_db. Database might not be initialized.")
-except Exception as e:
-    print(f"Error initializing database: {e}")
+from app import create_app  # noqa: E402
 
 app = create_app()
 
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    # Local dev only — production uses gunicorn via startup.sh.
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)

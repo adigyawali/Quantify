@@ -1,34 +1,30 @@
 """
 Stock + symbol HTTP routes.
 
-Thin transport layer — all intelligence lives in app.ai.
+Thin transport layer — all market intelligence lives in app.services.
 """
 from __future__ import annotations
 
-import os
-from datetime import datetime
+import logging
 
 import requests
 from flask import Blueprint, jsonify, request
 
 from ..ai import analyze_ticker, search_symbols, get_company_name, list_trending
-from ..ai.sources.finnhub import FinnhubSource
+from ..ai.market import market_state
+from ..security import rate_limit
+from ..services import market_data
 
 
+log = logging.getLogger("tickr.stocks")
 stock_routes = Blueprint("stocks", __name__)
 
 
 # ────── Sentiment / news ─────────────────────────────────────────────
 
 @stock_routes.route("/stock/<ticker>", methods=["GET"])
+@rate_limit(limit=30, window=60, scope="news")
 def get_stock_report(ticker: str):
-    """
-    Full sentiment report for a ticker.
-
-    Query params:
-      ?days=7       lookback window (1..30)
-      ?refresh=1    bypass cache for a fresh pull
-    """
     try:
         days = max(1, min(30, int(request.args.get("days", 7))))
     except (TypeError, ValueError):
@@ -51,13 +47,13 @@ def get_stock_report(ticker: str):
             return jsonify({"error": "News provider authentication failed."}), 502
         return jsonify({"error": f"News provider returned {status}."}), 502
     except requests.RequestException as exc:
-        return jsonify({"error": f"Unable to reach news provider: {exc}"}), 502
-    except Exception as exc:  # noqa: BLE001 — last-resort guard, real errors are above
-        return jsonify({"error": "Sentiment pipeline failed", "detail": str(exc)}), 500
+        log.warning("News provider unreachable: %s", exc)
+        return jsonify({"error": "Unable to reach news provider."}), 502
+    except Exception:  # noqa: BLE001
+        log.exception("Sentiment pipeline crash")
+        return jsonify({"error": "Sentiment pipeline failed"}), 500
 
     payload = report.to_dict()
-
-    # Backwards-compat: surface a flat `news` array for any legacy consumer.
     payload["news"] = [
         {
             "headline": a["headline"],
@@ -66,104 +62,32 @@ def get_stock_report(ticker: str):
         }
         for a in payload["articles"]
     ]
-
     if not payload["articles"]:
-        # Return 200 with an empty report so the frontend can render a clean
-        # empty state instead of treating "no news this week" as an error.
         payload["message"] = "No analyzable headlines were found in the lookback window."
     return jsonify(payload)
 
 
-# ────── Intraday history (unchanged) ─────────────────────────────────
+# ────── Intraday history ─────────────────────────────────────────────
 
 @stock_routes.route("/stock/<ticker>/history", methods=["GET"])
+@rate_limit(limit=60, window=60, scope="history")
 def get_stock_history(ticker: str):
-    # Try Alpha Vantage first, fallback to mock data
-    alpha_key = os.environ.get("ALPHA_VANTAGE_KEY")
-    
-    if alpha_key:
-        url = "https://www.alphavantage.co/query"
-        params = {
-            "function": "TIME_SERIES_INTRADAY",
-            "symbol": ticker.upper(),
-            "interval": "5min",
-            "apikey": alpha_key,
-        }
-        try:
-            r = requests.get(url, params=params, timeout=10)
-            if r.status_code == 200:
-                data = r.json() or {}
-                time_series = data.get("Time Series (5min)")
-                if time_series:
-                    sorted_keys = sorted(time_series.keys())
-                    history = [
-                        {
-                            "date": ts[5:16],   # "MM-DD HH:MM"
-                            "price": float(time_series[ts]["4. close"]),
-                        }
-                        for ts in sorted_keys
-                    ]
-                    return jsonify(history)
-        except Exception:
-            pass
-
-    # Fallback mock generator
-    import math
-    import random
-    
-    # Generate stable mock data based on ticker name
-    seed = sum(ord(c) for c in ticker.upper())
-    random.seed(seed)
-    
-    base_price = 100.0 + (seed % 900)
-    volatility = base_price * 0.002
-    
-    history = []
-    current_price = base_price
-    
-    # Generate 78 data points (typical 6.5 hour trading day at 5-min intervals)
-    for i in range(78):
-        hour = 9 + (i * 5) // 60
-        minute = (30 + i * 5) % 60
-        if minute < 30 and i * 5 < 30: # Adjust starting time from 9:30
-             minute += 30
-             if minute >= 60:
-                 minute -= 60
-                 hour += 1
-        
-        # Add random walk with slight momentum
-        momentum = random.uniform(-0.1, 0.1)
-        current_price = current_price + (random.uniform(-1, 1) + momentum) * volatility
-        current_price = max(1.0, current_price) # Prevent negative prices
-        
-        history.append({
-            "date": f"10-24 {hour:02d}:{minute:02d}", # Dummy date MM-DD HH:MM
-            "price": round(current_price, 2)
-        })
-        
-    return jsonify(history)
+    return jsonify(market_data.get_intraday(ticker))
 
 
 @stock_routes.route("/stock/<ticker>/quote", methods=["GET"])
+@rate_limit(limit=120, window=60, scope="quote")
 def get_quote(ticker: str):
-    """Live quote — used by buy modal to prefill price."""
-    q = FinnhubSource.quote(ticker)
-    if not q:
-        return jsonify({"error": "Quote unavailable"}), 502
-    return jsonify({
-        "ticker": ticker.upper(),
-        "price": q.get("c"),
-        "open": q.get("o"),
-        "high": q.get("h"),
-        "low": q.get("l"),
-        "previous_close": q.get("pc"),
-        "as_of": q.get("t") or int(datetime.utcnow().timestamp()),
-    })
+    quote = market_data.get_quote(ticker)
+    if not quote:
+        return jsonify({"error": "Quote unavailable for this ticker."}), 502
+    return jsonify({**quote, "market": market_state()})
 
 
 # ────── Symbol search ────────────────────────────────────────────────
 
 @stock_routes.route("/api/symbols/search", methods=["GET"])
+@rate_limit(limit=60, window=60, scope="search")
 def symbols_search():
     q = (request.args.get("q") or "").strip()
     try:
@@ -189,3 +113,31 @@ def symbol_lookup(ticker: str):
     if not name:
         return jsonify({"ticker": ticker.upper(), "name": None}), 404
     return jsonify({"ticker": ticker.upper(), "name": name})
+
+
+# ────── Market state & movers (server-cached, shared across users) ───
+
+@stock_routes.route("/api/market/state", methods=["GET"])
+def market_state_route():
+    return jsonify(market_state())
+
+
+@stock_routes.route("/api/market/movers", methods=["GET"])
+@rate_limit(limit=60, window=60, scope="movers")
+def market_movers():
+    try:
+        limit = max(3, min(15, int(request.args.get("limit", 6))))
+    except (TypeError, ValueError):
+        limit = 6
+    return jsonify(market_data.list_movers(limit=limit))
+
+
+@stock_routes.route("/api/market/sparkline/<ticker>", methods=["GET"])
+@rate_limit(limit=120, window=60, scope="sparkline")
+def market_sparkline(ticker: str):
+    try:
+        points = max(8, min(48, int(request.args.get("points", 24))))
+    except (TypeError, ValueError):
+        points = 24
+    series = market_data.get_sparkline(ticker, points=points)
+    return jsonify({"ticker": ticker.upper(), "points": series or []})

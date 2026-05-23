@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Star, StarOff, Plus, ExternalLink, AlertCircle, ArrowLeft, Newspaper,
-  Clock, RefreshCw,
+  Clock, RefreshCw, Activity, Moon,
 } from 'lucide-react';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
@@ -25,21 +25,31 @@ import { addToWatchlist, removeFromWatchlist, inWatchlist } from '../../lib/watc
 import { formatMoney, formatRelativeTime, cx } from '../../lib/format';
 import './Stock.css';
 
+const STATE_LABELS = {
+  open:   { label: 'Market open',   variant: 'bull',    icon: Activity, live: true },
+  pre:    { label: 'Pre-market',    variant: 'brand',   icon: Clock,    live: false },
+  after:  { label: 'After hours',   variant: 'brand',   icon: Clock,    live: false },
+  closed: { label: 'Market closed', variant: 'neutral', icon: Moon,     live: false },
+};
+
 export default function StockDetail() {
   const { ticker: rawTicker } = useParams();
   const ticker = (rawTicker || '').toUpperCase();
   const navigate = useNavigate();
   const { isAuthed } = useAuth();
 
-  const [report, setReport] = useState(null);    // { ticker, company, verdict, articles }
+  const [report, setReport] = useState(null);
   const [history, setHistory] = useState([]);
+  const [historyMeta, setHistoryMeta] = useState(null); // { market, trading_day, source }
+  const [quote, setQuote] = useState(null);             // live Finnhub quote
   const [loadingReport, setLoadingReport] = useState(true);
   const [loadingHist, setLoadingHist] = useState(true);
+  const [loadingQuote, setLoadingQuote] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [histError, setHistError] = useState('');
   const [watching, setWatching] = useState(false);
 
-  // buy modal
   const [buyOpen, setBuyOpen] = useState(false);
   const [qty, setQty] = useState(1);
   const [price, setPrice] = useState('');
@@ -63,30 +73,70 @@ export default function StockDetail() {
       .finally(() => setLoadingReport(false));
   };
 
+  const fetchHistory = () => {
+    setLoadingHist(true);
+    setHistError('');
+    return stockApi.history(ticker)
+      .then((res) => {
+        const payload = res.data || {};
+        // Tolerate the old bare-array shape too
+        if (Array.isArray(payload)) {
+          setHistory(payload);
+          setHistoryMeta(null);
+        } else {
+          setHistory(payload.history || []);
+          setHistoryMeta({
+            market: payload.market || null,
+            trading_day: payload.trading_day || null,
+            source: payload.source || 'none',
+          });
+        }
+      })
+      .catch((err) => {
+        setHistory([]);
+        setHistError(err.response?.data?.error || 'Could not load intraday chart.');
+      })
+      .finally(() => setLoadingHist(false));
+  };
+
+  const fetchQuote = () => {
+    setLoadingQuote(true);
+    return stockApi.quote(ticker)
+      .then((res) => setQuote(res.data))
+      .catch(() => setQuote(null))
+      .finally(() => setLoadingQuote(false));
+  };
+
   useEffect(() => {
     setReport(null);
     setHistory([]);
+    setHistoryMeta(null);
+    setQuote(null);
     setBought(false);
     setWatching(inWatchlist(ticker));
 
     fetchReport();
+    fetchHistory();
+    fetchQuote();
 
-    setLoadingHist(true);
-    stockApi.history(ticker)
-      .then((res) => setHistory(res.data || []))
-      .catch(() => {})
-      .finally(() => setLoadingHist(false));
-
-    // Push to recent searches with the resolved company name
     symbolsApi.lookup(ticker)
       .then((d) => pushRecent({ ticker, name: d.name || ticker }))
       .catch(() => pushRecent({ ticker, name: ticker }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticker]);
 
+  // Auto-refresh the quote during market hours
+  useEffect(() => {
+    const state = quote?.market?.state || historyMeta?.market?.state;
+    if (state !== 'open') return;
+    const id = setInterval(fetchQuote, 30000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quote?.market?.state, historyMeta?.market?.state]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchReport(true);
+    await Promise.all([fetchReport(true), fetchHistory(), fetchQuote()]);
     setRefreshing(false);
   };
 
@@ -94,12 +144,21 @@ export default function StockDetail() {
   const articles = useMemo(() => report?.articles || [], [report]);
   const company = report?.company;
 
-  const lastPrice = history.length ? history[history.length - 1].price : null;
-  const firstPrice = history.length ? history[0].price : null;
-  const pct = lastPrice && firstPrice ? ((lastPrice - firstPrice) / firstPrice) * 100 : 0;
-  const change = lastPrice && firstPrice ? lastPrice - firstPrice : 0;
-  const high = history.length ? Math.max(...history.map((h) => h.price)) : null;
-  const low = history.length ? Math.min(...history.map((h) => h.price)) : null;
+  // Pricing — prefer the live quote over the last chart bar.
+  const livePrice = quote?.price ?? null;
+  const prevClose = quote?.previous_close ?? null;
+  const change = quote?.change ?? null;
+  const pct = quote?.change_percent ?? 0;
+
+  // Chart-derived stats (fall back to quote where possible)
+  const histPrices = history.map((h) => h.price).filter((p) => Number.isFinite(p));
+  const sessionHigh = histPrices.length ? Math.max(...histPrices) : quote?.high ?? null;
+  const sessionLow = histPrices.length ? Math.min(...histPrices) : quote?.low ?? null;
+  const sessionOpen = quote?.open ?? (history.length ? history[0].price : null);
+
+  const market = quote?.market || historyMeta?.market;
+  const marketBadge = STATE_LABELS[market?.state] || STATE_LABELS.closed;
+  const MarketIcon = marketBadge.icon;
 
   const toggleWatch = () => {
     if (watching) { removeFromWatchlist(ticker); setWatching(false); }
@@ -109,7 +168,7 @@ export default function StockDetail() {
   const openBuy = () => {
     if (!isAuthed) return navigate('/login');
     setQty(1);
-    setPrice(lastPrice ? lastPrice.toFixed(2) : '');
+    setPrice(livePrice ? livePrice.toFixed(2) : '');
     setDate(new Date().toISOString().slice(0, 10));
     setBuyError('');
     setBought(false);
@@ -135,8 +194,14 @@ export default function StockDetail() {
     }
   };
 
-  // Max impact value, for normalizing the per-article impact bars
-  const maxImpact = useMemo(() => Math.max(0.1, ...articles.map((a) => a.impact || 0)), [articles]);
+  const maxImpact = useMemo(
+    () => Math.max(0.1, ...articles.map((a) => a.impact || 0)),
+    [articles]
+  );
+
+  const sourceLabel = historyMeta?.source === 'finnhub' ? 'Finnhub'
+    : historyMeta?.source === 'alpha' ? 'Alpha Vantage'
+    : 'Live data';
 
   return (
     <div className="stk">
@@ -152,7 +217,7 @@ export default function StockDetail() {
             <div className="stk-meta">
               <Badge variant="brand">{company || 'EQUITY'}</Badge>
               <span>·</span>
-              <span>Real-time pricing via Alpha Vantage</span>
+              <span>Real-time pricing via {sourceLabel}</span>
             </div>
           </div>
         </div>
@@ -185,26 +250,43 @@ export default function StockDetail() {
           <div style={{ padding: 'var(--s-6)' }}>
             <div className="stk-chart-head">
               <div>
-                <div className="dash-summary-label">Price (intraday 5-min)</div>
+                <div className="dash-summary-label">
+                  {market?.state === 'open'  ? 'Live price' :
+                   market?.state === 'pre'   ? 'Pre-market price' :
+                   market?.state === 'after' ? 'After-hours price' :
+                                                'Last close'}
+                </div>
                 <div className="stk-chart-price" style={{ marginTop: 8 }}>
                   <span className="stk-chart-currency">$</span>
-                  {loadingHist || !lastPrice ? (
+                  {loadingQuote || livePrice == null ? (
                     <Skeleton width={200} height={48} />
                   ) : (
-                    <AnimatedNumber value={lastPrice} format={(n) => formatMoney(n)} />
+                    <AnimatedNumber value={livePrice} format={(n) => formatMoney(n)} />
                   )}
                 </div>
-                {!loadingHist && lastPrice && (
-                  <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <DeltaPill value={pct} />
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)', color: change >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
-                      {change >= 0 ? '+' : ''}{formatMoney(change)}
+                {!loadingQuote && livePrice != null && (
+                  <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <DeltaPill value={pct || 0} />
+                    {change != null && (
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)', color: change >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
+                        {change >= 0 ? '+' : ''}{formatMoney(change)}
+                      </span>
+                    )}
+                    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-tertiary)' }}>
+                      vs. prev close{prevClose != null ? ` ($${formatMoney(prevClose)})` : ''}
                     </span>
-                    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-tertiary)' }}>session</span>
                   </div>
                 )}
               </div>
-              <Badge variant="bull" live>LIVE</Badge>
+              <div className="stk-market-state">
+                <Badge variant={marketBadge.variant} live={marketBadge.live}>
+                  <MarketIcon size={11} style={{ verticalAlign: -1, marginRight: 4 }} />
+                  {marketBadge.label}
+                </Badge>
+                {historyMeta?.trading_day && market?.state !== 'open' && (
+                  <span className="stk-market-meta">Last session: {historyMeta.trading_day}</span>
+                )}
+              </div>
             </div>
 
             <div className="stk-chart">
@@ -214,7 +296,12 @@ export default function StockDetail() {
                 <EmptyState
                   icon={<AlertCircle size={26} />}
                   title="No intraday data"
-                  description="Alpha Vantage may be rate-limited or this symbol has no recent activity."
+                  description={
+                    histError ||
+                    (market?.state === 'closed'
+                      ? "Market is closed and no recent session is available."
+                      : "We couldn't load intraday bars for this symbol just yet.")
+                  }
                 />
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
@@ -266,23 +353,23 @@ export default function StockDetail() {
               )}
             </div>
 
-            {!loadingHist && lastPrice && (
+            {!loadingQuote && livePrice != null && (
               <div className="stk-stats">
                 <div>
+                  <div className="stk-stat-label">Session open</div>
+                  <div className="stk-stat-value">{sessionOpen != null ? `$${formatMoney(sessionOpen)}` : '—'}</div>
+                </div>
+                <div>
                   <div className="stk-stat-label">Session high</div>
-                  <div className="stk-stat-value">${formatMoney(high)}</div>
+                  <div className="stk-stat-value">{sessionHigh != null ? `$${formatMoney(sessionHigh)}` : '—'}</div>
                 </div>
                 <div>
                   <div className="stk-stat-label">Session low</div>
-                  <div className="stk-stat-value">${formatMoney(low)}</div>
+                  <div className="stk-stat-value">{sessionLow != null ? `$${formatMoney(sessionLow)}` : '—'}</div>
                 </div>
                 <div>
-                  <div className="stk-stat-label">Range</div>
-                  <div className="stk-stat-value">${formatMoney(high - low)}</div>
-                </div>
-                <div>
-                  <div className="stk-stat-label">Points</div>
-                  <div className="stk-stat-value">{history.length}</div>
+                  <div className="stk-stat-label">Prev close</div>
+                  <div className="stk-stat-value">{prevClose != null ? `$${formatMoney(prevClose)}` : '—'}</div>
                 </div>
               </div>
             )}
@@ -402,7 +489,7 @@ export default function StockDetail() {
         )}
       </section>
 
-      {/* Buy modal — unchanged */}
+      {/* Buy modal */}
       <Modal
         open={buyOpen}
         onClose={() => setBuyOpen(false)}

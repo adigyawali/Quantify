@@ -1,10 +1,32 @@
 .git
 .gitignore
+.github
 .vscode
-client/node_modules
-client/build
+.idea
+.DS_Store
+.env
+.env.*
+*.log
+
+# Local Python
 __pycache__
 *.pyc
-.env
+*.pyo
 venv
 env
+.venv
+.pytest_cache
+
+# Node
+client/node_modules
+
+# IMPORTANT: do NOT exclude client/build — Flask serves it.
+# Build is committed (see .gitignore !client/build override) or generated
+# in CI before `docker build`.
+
+# Local SQLite (Azure App Service mounts a persistent path at /home)
+flask-server/userInfo.db
+*.db-journal
+
+# Mac
+Thumbs.db

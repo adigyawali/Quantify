@@ -17,7 +17,9 @@ api.interceptors.response.use(
     if (err.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('username');
-      if (window.location.pathname !== '/login' && window.location.pathname !== '/signup' && window.location.pathname !== '/') {
+      localStorage.removeItem('profile');
+      const path = window.location.pathname;
+      if (path !== '/login' && path !== '/signup' && path !== '/') {
         window.location.href = '/login';
       }
     }
@@ -29,13 +31,18 @@ api.interceptors.response.use(
 
 export const authApi = {
   login: (username, password) => api.post('/login', { username, password }),
-  signup: (username, password) => api.post('/signup', { username, password }),
+  signup: (payload) => api.post('/signup', payload),
+  me: () => api.get('/me'),
 };
 
 export const stockApi = {
   news: (ticker, config) => api.get(`/stock/${encodeURIComponent(ticker)}`, config),
   history: (ticker) => api.get(`/stock/${encodeURIComponent(ticker)}/history`),
   quote: (ticker) => api.get(`/stock/${encodeURIComponent(ticker)}/quote`),
+  marketState: () => api.get('/api/market/state'),
+  movers: (limit = 6) => api.get('/api/market/movers', { params: { limit } }),
+  sparkline: (ticker, points = 24) =>
+    api.get(`/api/market/sparkline/${encodeURIComponent(ticker)}`, { params: { points } }),
 };
 
 export const portfolioApi = {

@@ -29,7 +29,17 @@ export default function Profile() {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
 
-  const initial = (user?.username || '?').slice(0, 1).toUpperCase();
+  const displayName =
+    user?.displayName ||
+    [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim() ||
+    user?.username ||
+    'You';
+  const initial = (() => {
+    const parts = displayName.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (user?.username || '?').slice(0, 1).toUpperCase();
+  })();
 
   const handleLogout = () => {
     logout();
@@ -48,8 +58,11 @@ export default function Profile() {
       <div className="profile-hero">
         <div className="profile-avatar">{initial}</div>
         <div className="profile-greet">
-          <div className="profile-name">{user?.username || 'You'}</div>
-          <div className="profile-handle">@{user?.username || 'guest'}</div>
+          <div className="profile-name">{displayName}</div>
+          <div className="profile-handle">
+            @{user?.username || 'guest'}
+            {user?.email && <span className="profile-email"> · {user.email}</span>}
+          </div>
           <div className="profile-tags">
             <Badge variant="brand">Pro trader</Badge>
             <Badge variant="bull" live>Active</Badge>
@@ -65,6 +78,24 @@ export default function Profile() {
         <h3><Shield size={16} style={{ display: 'inline', marginRight: 8, verticalAlign: -2 }} /> Account</h3>
         <div className="settings-row">
           <div className="settings-row-meta">
+            <span className="settings-row-label">Full name</span>
+            <span className="settings-row-desc">How you'll be greeted across Tickr.</span>
+          </div>
+          <div style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+            {[user?.first_name, user?.last_name].filter(Boolean).join(' ') || '—'}
+          </div>
+        </div>
+        <div className="settings-row">
+          <div className="settings-row-meta">
+            <span className="settings-row-label">Email</span>
+            <span className="settings-row-desc">Used for account recovery and alerts.</span>
+          </div>
+          <div style={{ color: 'var(--text-primary)' }}>
+            {user?.email || '—'}
+          </div>
+        </div>
+        <div className="settings-row">
+          <div className="settings-row-meta">
             <span className="settings-row-label">Username</span>
             <span className="settings-row-desc">Your unique handle — used to sign in.</span>
           </div>
@@ -75,7 +106,7 @@ export default function Profile() {
         <div className="settings-row">
           <div className="settings-row-meta">
             <span className="settings-row-label">Session</span>
-            <span className="settings-row-desc">JWT, valid for 2 hours after sign-in.</span>
+            <span className="settings-row-desc">JWT, valid for 12 hours after sign-in.</span>
           </div>
           <Badge variant="bull">Authenticated</Badge>
         </div>

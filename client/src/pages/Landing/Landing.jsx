@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  TrendingUp,
   ArrowRight,
   Sparkles,
   BarChart3,
@@ -13,6 +12,7 @@ import {
   Globe,
   PlayCircle,
 } from 'lucide-react';
+import { BrandMark } from '../../components/ui/BrandMark';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -93,10 +93,8 @@ export default function Landing() {
       {/* nav */}
       <nav className="landing-nav">
         <Link to="/" className="landing-nav-brand">
-          <div className="sidebar-mark" style={{ width: 30, height: 30, borderRadius: 8 }}>
-            <TrendingUp size={15} strokeWidth={2.5} />
-          </div>
-          Sentivest
+          <BrandMark size={30} />
+          Tickr
         </Link>
         <div className="landing-nav-links">
           <a href="#features">Features</a>
@@ -387,12 +385,10 @@ export default function Landing() {
 
       <footer className="landing-footer">
         <div className="landing-footer-brand">
-          <div className="sidebar-mark" style={{ width: 26, height: 26, borderRadius: 7 }}>
-            <TrendingUp size={13} strokeWidth={2.5} />
-          </div>
-          Sentivest · made for traders who think
+          <BrandMark size={26} />
+          Tickr · market intelligence, clarified
         </div>
-        <div>© {new Date().getFullYear()} Sentivest. All rights reserved.</div>
+        <div>© {new Date().getFullYear()} Tickr. All rights reserved.</div>
       </footer>
     </div>
   );

@@ -1,5 +1,5 @@
 """
-Finnhub `company-news` adapter.
+Finnhub adapter — news, quotes, profiles, intraday candles.
 """
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ _BASE = "https://finnhub.io/api/v1/company-news"
 _PROFILE = "https://finnhub.io/api/v1/stock/profile2"
 _SEARCH = "https://finnhub.io/api/v1/search"
 _QUOTE = "https://finnhub.io/api/v1/quote"
+_CANDLE = "https://finnhub.io/api/v1/stock/candle"
 
 
 def _api_key() -> str | None:
@@ -60,7 +61,7 @@ class FinnhubSource(NewsSource):
             ))
         return out
 
-    # Helpers used by other modules — convenient to live next to the source
+    # ── Static helpers ───────────────────────────────────────────
 
     @staticmethod
     def company_profile(ticker: str, timeout: int = 5) -> dict | None:
@@ -87,7 +88,37 @@ class FinnhubSource(NewsSource):
                              headers={"Accept-Encoding": "identity"}, timeout=timeout)
             if r.status_code != 200:
                 return None
-            return r.json() or None
+            data = r.json() or None
+            # Finnhub returns all-zeros for invalid symbols
+            if not data or (data.get("c") in (0, None) and data.get("pc") in (0, None)):
+                return None
+            return data
+        except requests.RequestException:
+            return None
+
+    @staticmethod
+    def candles(ticker: str, resolution: str, from_ts: int, to_ts: int, timeout: int = 8) -> dict | None:
+        """
+        Intraday/daily candles. `resolution` is one of 1, 5, 15, 30, 60, D, W, M.
+        Returns the raw Finnhub payload {s, t, o, h, l, c, v} or None.
+        """
+        key = _api_key()
+        if not key:
+            return None
+        try:
+            r = requests.get(_CANDLE, params={
+                "symbol": ticker,
+                "resolution": resolution,
+                "from": from_ts,
+                "to": to_ts,
+                "token": key,
+            }, headers={"Accept-Encoding": "identity"}, timeout=timeout)
+            if r.status_code != 200:
+                return None
+            data = r.json() or {}
+            if data.get("s") != "ok" or not data.get("t"):
+                return None
+            return data
         except requests.RequestException:
             return None
 

@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, User, Lock, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
+import {
+  Eye, EyeOff, User, Lock, Mail, ArrowRight, AlertCircle, CheckCircle2, UserCircle,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AuthLayout from './AuthLayout';
 import Input, { Field } from '../../components/ui/Input';
@@ -20,7 +22,12 @@ function scorePassword(pw) {
   return Math.min(s, 3);
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function Signup() {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -29,7 +36,7 @@ export default function Signup() {
   const [success, setSuccess] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const { signup, login } = useAuth();
+  const { signup } = useAuth();
   const navigate = useNavigate();
 
   const score = useMemo(() => scorePassword(password), [password]);
@@ -40,24 +47,29 @@ export default function Signup() {
     e.preventDefault();
     setError('');
     setSuccess('');
+
+    if (!firstName.trim() || !lastName.trim()) return setError('Please enter your full name.');
+    if (!EMAIL_RE.test(email.trim())) return setError('Enter a valid email address.');
     if (!username.trim()) return setError('Pick a username.');
-    if (password.length < 6) return setError('Password must be at least 6 characters.');
+    if (password.length < 8) return setError('Password must be at least 8 characters.');
     if (password !== confirm) return setError('Passwords do not match.');
 
     setBusy(true);
     try {
-      await signup(username.trim(), password);
-      setSuccess('Account created. Signing you in…');
-      try {
-        await login(username.trim(), password);
-        setTimeout(() => navigate('/dashboard', { replace: true }), 600);
-      } catch {
-        setTimeout(() => navigate('/login', { replace: true }), 800);
-      }
+      await signup({
+        username: username.trim(),
+        password,
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        email: email.trim().toLowerCase(),
+      });
+      setSuccess('Account created. Taking you to your dashboard…');
+      setTimeout(() => navigate('/dashboard', { replace: true }), 600);
     } catch (err) {
-      setError(err.response?.status === 409
-        ? 'That username is already taken.'
-        : err.response?.data?.message || 'Could not create account. Try again.');
+      setError(
+        err.response?.data?.message ||
+        (err.response?.status === 409 ? 'That account already exists.' : 'Could not create account. Try again.')
+      );
     } finally {
       setBusy(false);
     }
@@ -92,6 +104,40 @@ export default function Signup() {
           )}
         </AnimatePresence>
 
+        <div className="auth-row">
+          <Field label="First name">
+            <Input
+              leading={<UserCircle size={16} />}
+              placeholder="Jane"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              autoComplete="given-name"
+              autoFocus
+            />
+          </Field>
+          <Field label="Last name">
+            <Input
+              leading={<UserCircle size={16} />}
+              placeholder="Doe"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              autoComplete="family-name"
+            />
+          </Field>
+        </div>
+
+        <Field label="Email">
+          <Input
+            type="email"
+            leading={<Mail size={16} />}
+            placeholder="you@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            inputMode="email"
+          />
+        </Field>
+
         <Field label="Username">
           <Input
             leading={<User size={16} />}
@@ -99,7 +145,6 @@ export default function Signup() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             autoComplete="username"
-            autoFocus
           />
         </Field>
 
@@ -107,7 +152,7 @@ export default function Signup() {
           <Input
             type={showPw ? 'text' : 'password'}
             leading={<Lock size={16} />}
-            placeholder="at least 6 characters"
+            placeholder="at least 8 characters"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="new-password"
@@ -130,7 +175,7 @@ export default function Signup() {
               />
             ))}
           </div>
-          <div className="pw-strength-label">{password ? `Strength: ${scoreLabel}` : ' '}</div>
+          <div className="pw-strength-label">{password ? `Strength: ${scoreLabel}` : ' '}</div>
         </Field>
 
         <Field label="Confirm Password">

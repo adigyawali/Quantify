@@ -1,28 +1,35 @@
-# Use an official Python runtime as a parent image
+# Tickr — production container.
+# Used for Azure App Service (Web App for Containers) and local docker-compose.
 FROM python:3.12-slim
 
-# Set the working directory in the container
+# System deps for sqlite + numpy/torch wheels
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential \
+      curl \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# Copy the requirements file into the container at /app
-COPY flask-server/requirements.txt .
-
-# Install any needed packages specified in requirements.txt
+# Install Python deps first to leverage layer caching.
+COPY flask-server/requirements.txt ./flask-server/requirements.txt
+COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code
+# App code
 COPY . .
 
-# Set environment variables
-ENV FLASK_APP=run.py
-ENV FLASK_ENV=production
-ENV PYTHONUNBUFFERED=1
+RUN chmod +x startup.sh
 
-# Expose port 8000 for the Flask app
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=8000 \
+    DATABASE_FILE_PATH=/home/site/data/userInfo.db \
+    HF_HOME=/home/.cache/huggingface
+
 EXPOSE 8000
 
-# Run the startup script
-# Ensure startup.sh is executable
-RUN chmod +x startup.sh
+# Healthcheck — Azure's load balancer can also use /healthz.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD curl -fsS http://127.0.0.1:${PORT}/healthz || exit 1
 
 CMD ["./startup.sh"]
