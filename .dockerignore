@@ -8,14 +8,14 @@
 .env.*
 *.log
 
-# Local Python
-__pycache__
-*.pyc
-*.pyo
-venv
-env
-.venv
-.pytest_cache
+# Local Python (match at any depth — Docker patterns are root-only without **)
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/venv
+**/.venv
+**/env
+**/.pytest_cache
 
 # Node
 client/node_modules

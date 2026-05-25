@@ -15,6 +15,18 @@ COPY flask-server/requirements.txt ./flask-server/requirements.txt
 COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Bake the FinBERT-tone weights into the image at /opt/hf-cache.
+# /home is a volume mount on Azure App Service, so anything cached there
+# at build time is invisible at runtime — we deliberately use /opt instead.
+ENV HF_HOME=/opt/hf-cache \
+    TRANSFORMERS_CACHE=/opt/hf-cache/transformers \
+    HF_HUB_DISABLE_TELEMETRY=1
+RUN mkdir -p "$HF_HOME" && \
+    python -c "from transformers import AutoTokenizer, AutoModelForSequenceClassification; \
+m='yiyanghkust/finbert-tone'; \
+AutoTokenizer.from_pretrained(m); \
+AutoModelForSequenceClassification.from_pretrained(m)"
+
 # App code
 COPY . .
 
@@ -23,13 +35,12 @@ RUN chmod +x startup.sh
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=8000 \
-    DATABASE_FILE_PATH=/home/site/data/userInfo.db \
-    HF_HOME=/home/.cache/huggingface
+    DATABASE_FILE_PATH=/home/site/data/userInfo.db
 
 EXPOSE 8000
 
-# Healthcheck — Azure's load balancer can also use /healthz.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-  CMD curl -fsS http://127.0.0.1:${PORT}/healthz || exit 1
+# Note: no HEALTHCHECK — Azure App Service has its own warmup probe (hits
+# /robots933456.txt then user traffic) and a baked-in HEALTHCHECK can race
+# with cold-start and trigger ContainerCreateFailure.
 
 CMD ["./startup.sh"]

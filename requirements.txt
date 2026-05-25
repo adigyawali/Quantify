@@ -2,7 +2,8 @@ Flask
 Flask-Cors
 python-dotenv
 requests
-transformers
+transformers<5
+sentencepiece
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch
 gunicorn
