@@ -47,13 +47,16 @@ def create_app():
         logger.warning("SECRET_KEY not set — auth endpoints will refuse to issue tokens.")
 
     base_dir = os.path.abspath(os.path.dirname(__file__))
-    static_dir = os.path.join(base_dir, "../../client/build")
+    build_dir = os.path.join(base_dir, "../../client/build")
+    # CRA emits hashed JS/CSS to build/static/. Point Flask's built-in static
+    # handler at exactly that folder so /static/js/main.<hash>.js resolves to
+    # build/static/js/main.<hash>.js — and so the handler ONLY answers /static/*.
+    # Every other root path (/, /favicon.ico, /privacy, /login, etc.) falls
+    # through to the SPA fallback below so deep-linking and refresh work.
+    static_dir = os.path.join(build_dir, "static")
 
-    # static_url_path="/static" — Flask's built-in static handler answers only
-    # at /static/* (which is where CRA bundles its hashed JS/CSS). All other
-    # root paths (/, /favicon.ico, /privacy, /login, etc.) fall through to the
-    # SPA fallback below so deep-linking and refresh work.
     app = Flask(__name__, static_folder=static_dir, static_url_path="/static")
+    app.config["BUILD_DIR"] = os.path.abspath(build_dir)
 
     # CORS allowlist (env-driven). Prod must set ALLOWED_ORIGINS.
     CORS(
@@ -66,16 +69,22 @@ def create_app():
     install_security_headers(app)
 
     # ── Static + SPA fallback ──
+    # Serves index.html for /, top-level CRA assets (favicon.ico, manifest.json,
+    # robots.txt, etc.) from build/, and falls back to index.html for any
+    # client-side route (/privacy, /login, /dashboard, …). The hashed bundles
+    # under /static/* are handled by Flask's built-in static endpoint above.
     @app.route("/")
     def serve_react():
-        return send_from_directory(app.static_folder, "index.html")
+        return send_from_directory(app.config["BUILD_DIR"], "index.html")
 
     @app.route("/<path:path>")
-    def serve_static(path):
-        full = os.path.join(app.static_folder, path)
-        if os.path.exists(full):
-            return send_from_directory(app.static_folder, path)
-        return send_from_directory(app.static_folder, "index.html")
+    def serve_root_or_spa(path):
+        build_dir = app.config["BUILD_DIR"]
+        candidate = os.path.normpath(os.path.join(build_dir, path))
+        # Guard against path traversal — only serve files inside build_dir.
+        if candidate.startswith(build_dir) and os.path.isfile(candidate):
+            return send_from_directory(build_dir, path)
+        return send_from_directory(build_dir, "index.html")
 
     # ── API routes ──
     app.register_blueprint(home_routes)
