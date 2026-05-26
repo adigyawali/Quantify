@@ -379,3 +379,6 @@
   color: var(--text-tertiary);
 }
 .landing-footer-brand { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); }
+.landing-footer-links { display: flex; gap: var(--s-5); align-items: center; }
+.landing-footer-links a { color: var(--text-tertiary); text-decoration: none; }
+.landing-footer-links a:hover { color: var(--text-primary); }

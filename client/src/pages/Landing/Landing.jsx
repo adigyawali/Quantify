@@ -344,6 +344,10 @@ export default function Landing() {
           <BrandMark size={26} />
           Tickr
         </div>
+        <div className="landing-footer-links">
+          <Link to="/privacy">Privacy</Link>
+          <Link to="/terms">Terms</Link>
+        </div>
         <div>© {new Date().getFullYear()} Tickr</div>
       </footer>
     </div>

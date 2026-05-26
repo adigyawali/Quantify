@@ -11,6 +11,8 @@ import StockDetail from './pages/Stock/StockDetail';
 import Portfolio from './pages/Portfolio/Portfolio';
 import Watchlist from './pages/Watchlist/Watchlist';
 import Profile from './pages/Profile/Profile';
+import Privacy from './pages/Legal/Privacy';
+import Terms from './pages/Legal/Terms';
 
 function Protected({ children }) {
   const { isAuthed, ready } = useAuth();
@@ -35,6 +37,8 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login"  element={<PublicOnly><Login /></PublicOnly>} />
           <Route path="/signup" element={<PublicOnly><Signup /></PublicOnly>} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms"   element={<Terms />} />
 
           <Route element={<Protected><AppShell /></Protected>}>
             <Route path="/dashboard" element={<Dashboard />} />
