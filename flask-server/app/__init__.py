@@ -49,7 +49,11 @@ def create_app():
     base_dir = os.path.abspath(os.path.dirname(__file__))
     static_dir = os.path.join(base_dir, "../../client/build")
 
-    app = Flask(__name__, static_folder=static_dir, static_url_path="/")
+    # static_url_path="/static" — Flask's built-in static handler answers only
+    # at /static/* (which is where CRA bundles its hashed JS/CSS). All other
+    # root paths (/, /favicon.ico, /privacy, /login, etc.) fall through to the
+    # SPA fallback below so deep-linking and refresh work.
+    app = Flask(__name__, static_folder=static_dir, static_url_path="/static")
 
     # CORS allowlist (env-driven). Prod must set ALLOWED_ORIGINS.
     CORS(
