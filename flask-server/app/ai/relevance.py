@@ -118,9 +118,12 @@ def relevance_score(headline: str, summary: str, ticker: str, company: str | Non
     # 5. Headline-position bonus — mentions in the headline are stronger signal
     headline_norm = _normalize(headline or "")
     if headline_norm:
-        if re.search(rf"\b{re.escape(ticker.lower())}\b", headline_norm) or (
-            company and re.search(rf"\b{re.escape(_normalize(normalize_company(company)).split()[0])}\b", headline_norm)
-        ):
+        company_norm_tokens = _normalize(normalize_company(company or "")).split()
+        company_lead = company_norm_tokens[0] if company_norm_tokens else ""
+        in_headline = re.search(rf"\b{re.escape(ticker.lower())}\b", headline_norm) is not None
+        if not in_headline and company_lead:
+            in_headline = re.search(rf"\b{re.escape(company_lead)}\b", headline_norm) is not None
+        if in_headline:
             score += 0.15
 
     return max(0.0, min(score, 1.0))

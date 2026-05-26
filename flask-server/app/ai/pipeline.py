@@ -30,6 +30,12 @@ _WINDOW_DAYS = 7
 _MIN_RELEVANCE = 0.30
 _MAX_OUTPUT = 25
 
+# Cap how many articles FinBERT classifies per request. FinBERT-tone on CPU
+# is ~50-100ms/article; classifying 200+ articles overruns the Azure App
+# Service per-request budget. We keep the highest-signal ones (source quality
+# × recency) and drop the tail.
+_MAX_CLASSIFY = 40
+
 
 def _fetch_raw(ticker: str, days: int) -> list[RawArticle]:
     key = f"raw::{ticker.upper()}::{days}"
@@ -94,6 +100,18 @@ def analyze_ticker(
     if not pre and raws:
         sorted_raw = sorted(raws, key=lambda x: -len(x.headline or ""))[:8]
         pre = [(r, 0.25) for r in sorted_raw]
+
+    # Cap classification load — without this, heavily-covered tickers (IBM,
+    # AAPL, etc.) can return 100+ articles and exhaust the request budget on
+    # a small VM. Keep the ones that will matter most after weighting.
+    if len(pre) > _MAX_CLASSIFY:
+        pre.sort(
+            key=lambda item: (
+                source_weight(item[0].source) * recency_weight(item[0].published_at, now=now) * item[1]
+            ),
+            reverse=True,
+        )
+        pre = pre[:_MAX_CLASSIFY]
 
     # 3. Sentiment classify
     sentiments = _classify_articles([r for r, _ in pre])

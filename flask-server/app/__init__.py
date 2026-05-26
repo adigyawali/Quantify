@@ -1,5 +1,6 @@
 import os
 import logging
+import threading
 from dotenv import load_dotenv
 
 # Load env as early as possible
@@ -21,6 +22,18 @@ def _configure_logging():
         level=getattr(logging, level, logging.INFO),
         format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
     )
+
+
+def _prewarm_finbert():
+    """Load FinBERT weights off the request path so the first user request
+    doesn't pay the 30-60s cold-start cost."""
+    logger = logging.getLogger("tickr.warmup")
+    try:
+        from .ai.sentiment import _ensure_loaded
+        _ensure_loaded()
+        logger.info("FinBERT pre-warmed.")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("FinBERT pre-warm failed (will retry on first request): %s", exc)
 
 
 def create_app():
@@ -79,5 +92,9 @@ def create_app():
             return jsonify({"message": err.description}), err.code
         logger.exception("Unhandled error: %s", err)
         return jsonify({"message": "Internal server error"}), 500
+
+    # Pre-warm FinBERT in a background thread so it doesn't block boot but
+    # is ready before the first /stock/<ticker> request lands.
+    threading.Thread(target=_prewarm_finbert, name="finbert-warmup", daemon=True).start()
 
     return app

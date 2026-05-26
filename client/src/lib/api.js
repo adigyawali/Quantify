@@ -36,7 +36,10 @@ export const authApi = {
 };
 
 export const stockApi = {
-  news: (ticker, config) => api.get(`/stock/${encodeURIComponent(ticker)}`, config),
+  // FinBERT classification of 30+ articles on the server can take ~20-40s
+  // on cold workers, well past the default 20s axios timeout.
+  news: (ticker, config) =>
+    api.get(`/stock/${encodeURIComponent(ticker)}`, { timeout: 90000, ...(config || {}) }),
   history: (ticker) => api.get(`/stock/${encodeURIComponent(ticker)}/history`),
   quote: (ticker) => api.get(`/stock/${encodeURIComponent(ticker)}/quote`),
   marketState: () => api.get('/api/market/state'),

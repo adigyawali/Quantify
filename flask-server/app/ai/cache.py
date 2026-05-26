@@ -40,8 +40,11 @@ class TTLCache:
             self._store.clear()
 
 
-# Public, per-purpose caches
-news_cache = TTLCache(ttl_seconds=300)      # raw news per ticker (5 min)
-report_cache = TTLCache(ttl_seconds=180)    # full sentiment report (3 min)
-sentiment_cache = TTLCache(ttl_seconds=3600, max_entries=4096)  # per-text sentiment (1 hr)
+# Public, per-purpose caches.
+# Sentiment is an expensive call (FinBERT on CPU). Caches are tuned for
+# "fresh enough that the headlines are still relevant, long enough that a
+# warm worker rarely re-pays the compute cost."
+news_cache = TTLCache(ttl_seconds=1800)     # raw news per ticker (30 min)
+report_cache = TTLCache(ttl_seconds=1800)   # full sentiment report (30 min)
+sentiment_cache = TTLCache(ttl_seconds=86400, max_entries=4096)  # per-text sentiment (1 day)
 symbol_cache = TTLCache(ttl_seconds=86400)  # ticker → company name (1 day)
