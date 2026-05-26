@@ -241,6 +241,32 @@
 .auth-foot a { color: var(--brand-300); font-weight: 600; }
 .auth-foot a:hover { color: var(--brand-50); }
 
+.auth-agree {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  cursor: pointer;
+  user-select: none;
+}
+.auth-agree input[type="checkbox"] {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+  accent-color: var(--brand-300);
+  cursor: pointer;
+}
+.auth-agree a {
+  color: var(--brand-300);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.auth-agree a:hover { color: var(--brand-50); }
+
 .auth-error {
   display: flex;
   align-items: flex-start;

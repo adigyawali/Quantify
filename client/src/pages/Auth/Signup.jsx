@@ -32,6 +32,7 @@ export default function Signup() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [busy, setBusy] = useState(false);
@@ -53,6 +54,7 @@ export default function Signup() {
     if (!username.trim()) return setError('Pick a username.');
     if (password.length < 8) return setError('Password must be at least 8 characters.');
     if (password !== confirm) return setError('Passwords do not match.');
+    if (!agreed) return setError('You must agree to the Terms and Privacy Policy to continue.');
 
     setBusy(true);
     try {
@@ -190,11 +192,26 @@ export default function Signup() {
           />
         </Field>
 
+        <label className="auth-agree">
+          <input
+            type="checkbox"
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            aria-required="true"
+          />
+          <span>
+            I agree to the{' '}
+            <Link to="/terms" target="_blank" rel="noopener noreferrer">Terms &amp; Conditions</Link>
+            {' '}and{' '}
+            <Link to="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</Link>.
+          </span>
+        </label>
+
         <Button
           type="submit"
           size="lg"
           block
-          disabled={busy}
+          disabled={busy || !agreed}
           trailing={busy ? <Spinner size="sm" /> : <ArrowRight size={16} />}
         >
           {busy ? 'Creating…' : 'Create account'}
@@ -206,10 +223,6 @@ export default function Signup() {
       <Button as={Link} to="/login" variant="secondary" size="lg" block>
         I already have an account
       </Button>
-
-      <div className="auth-foot">
-        By creating an account, you accept our <span style={{ color: 'var(--brand-300)', fontWeight: 600 }}>Terms</span> and <span style={{ color: 'var(--brand-300)', fontWeight: 600 }}>Privacy Policy</span>.
-      </div>
     </AuthLayout>
   );
 }

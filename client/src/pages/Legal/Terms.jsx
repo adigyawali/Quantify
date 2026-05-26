@@ -111,7 +111,22 @@ export default function Terms() {
         You may stop using the app and request account deletion at any time. The developer
         may suspend or shut down the service, or any account, at any time and for any
         reason, including ceasing the project entirely.
+
       </p>
+
+    <p>
+      We reserve the right to suspend, restrict, modify, or terminate accounts,
+      remove content, or limit access to the app at our sole discretion, with or
+      without notice, if we believe a user has violated these Terms, misused the
+      platform, engaged in harmful or inappropriate behavior, or otherwise created
+      risk or liability for the app or its users.
+    </p>
+
+    <p>
+      We may also take action in situations not explicitly described in these Terms
+      where necessary to protect the integrity, security, availability, or intended
+      use of the service.
+    </p>
 
       <h2>10. Changes to these Terms</h2>
       <p>
