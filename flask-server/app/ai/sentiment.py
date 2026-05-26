@@ -17,6 +17,7 @@ from __future__ import annotations
 import hashlib
 import math
 import re
+import threading
 import time
 from typing import Iterable, Optional
 
@@ -40,24 +41,36 @@ _tokenizer = None
 _model = None
 _torch = None
 
+# Guards _ensure_loaded so that the pre-warm thread and a concurrent first
+# request can't both try to download/load the model at once. Without this,
+# the second caller can read a half-initialized state (e.g. tokenizer set
+# but model still None) and crash with NoneType errors.
+_load_lock = threading.Lock()
+
 
 def _ensure_loaded():
-    """Loads FinBERT-tone on first use (slow, ~1-2s once)."""
+    """Loads FinBERT-tone on first use (slow, ~10-30s once on cold workers)."""
     global _tokenizer, _model, _torch
     if _model is not None:
         return
-    try:
-        import torch
-        from transformers import AutoTokenizer, AutoModelForSequenceClassification
-    except ImportError as exc:
-        raise RuntimeError(
-            "FinBERT dependencies missing — install `torch` and `transformers`."
-        ) from exc
+    with _load_lock:
+        if _model is not None:
+            return
+        try:
+            import torch
+            from transformers import AutoTokenizer, AutoModelForSequenceClassification
+        except ImportError as exc:
+            raise RuntimeError(
+                "FinBERT dependencies missing — install `torch` and `transformers`."
+            ) from exc
 
-    _torch = torch
-    _tokenizer = AutoTokenizer.from_pretrained("yiyanghkust/finbert-tone")
-    _model = AutoModelForSequenceClassification.from_pretrained("yiyanghkust/finbert-tone")
-    _model.eval()
+        _torch = torch
+        tokenizer = AutoTokenizer.from_pretrained("yiyanghkust/finbert-tone")
+        model = AutoModelForSequenceClassification.from_pretrained("yiyanghkust/finbert-tone")
+        model.eval()
+        # Publish only after both objects are fully constructed.
+        _tokenizer = tokenizer
+        _model = model
 
 
 def _clean(text: str) -> str:
